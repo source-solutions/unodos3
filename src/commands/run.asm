@@ -14,10 +14,6 @@
 ;	// You should have received a copy of the GNU General Public License
 ;	// along with UnoDOS 3. If not, see <http://www.gnu.org/licenses/>.
 
-; 	// This source is compatible with Zeus
-;	// (http://www.desdes.com/products/oldfiles)
-
-	output_bin "run", $2000, $0200
 	include "hookcodes.inc"
 
 	org $2000
