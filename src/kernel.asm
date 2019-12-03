@@ -44,7 +44,7 @@ L000B:
 	jr L0015;							//
 
 	org $0010
-L0010:
+restart_10:
 	jp L0845;							//
 
 	org $0015
@@ -52,12 +52,12 @@ L0015:
 	jp L0CD4;							//
 
 	org $0018
-L0018:
+restart_18:
 	jp $0cbd;							//
 
 	org $001f
 L001F:
-L0020 equ L001F + 1
+restart_20 equ L001F + 1
 	jr L004B;							//
 	ld e, l;							//
 	ld e, h;							//
@@ -65,7 +65,7 @@ L0020 equ L001F + 1
 	jr L004D;							//
 
 	org $0028
-L0028:
+restart_28:
 	push hl;							//
 	ld hl, (mmc_sp);					//
 	ex (sp), hl;						//
@@ -73,7 +73,7 @@ L0028:
 
 ;	// auxiliary routines for internal UnoDOS business
 	org $0030
-L0030:
+restart_38:
 	jr L0091;							// 
 
 cmd_folder:
@@ -81,7 +81,7 @@ cmd_folder:
 
 ;	// automatically mapped in by the hardware after M1 when PC=$0038
 	org $0038
-L0038:
+maskint:
 	jr L001F;							//
 	ld hl, $0039;						//
 	jp L1FF4;							//
@@ -1560,7 +1560,7 @@ L087F:
 	jr nz, L0896;						// 
 	ld a, c;							// 
 	or c;								// 
-	call nz, L0010;						// 
+	call nz, restart_10;						// 
 	ret;								// 
 
 L0894:
@@ -4674,7 +4674,7 @@ L1A43:
 	ld l, a;							// 
 	call L1A14;							// 
 	call L0694;							// 
-	call z, L0028;						// 
+	call z, restart_28;					// 
 	pop hl;								// 
 	pop bc;								// 
 	ret;								// 
@@ -5811,7 +5811,7 @@ L2140:
 
 L215E:
 	ld hl, $2E69;						// 
-	ld de, L0010;						// 
+	ld de, restart_10;						// 
 
 L2164:
 	ld bc, $FFFD;						// 
@@ -5828,7 +5828,7 @@ L2164:
 	ret;								// 
 
 L2177:
-	ld de, L0010;						// 
+	ld de, restart_10;						// 
 
 L217A:
 	ld bc, $FFFD;						// 
@@ -6271,7 +6271,7 @@ L241B equ $241b
 	call L242E;							// 
 	jp nc, L0D94;						// 
 	cp 5;								// 
-	jp nz, L0020;						// 
+	jp nz, restart_20;					// 
 	ld a, $16;							// 
 	rst $20;							// 
 
@@ -6965,7 +6965,7 @@ L31D1:
 	ld l, (ix + $1C);					// 
 	ld h, (ix + $1D);					// 
 	ld de, $2D00;						// 
-	ld bc, L0020;						// 
+	ld bc, $0020;						// 
 	ldir;								// 
 	pop hl;								// 
 	ld a, $80;							// 
