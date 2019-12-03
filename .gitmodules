@@ -1,0 +1,3 @@
+[submodule "src/commands/contrib/nagydani/dot-commands"]
+	path = src/commands/contrib/nagydani/dot-commands
+	url = git://github.com/nagydani/dot-commands
