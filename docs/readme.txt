@@ -83,6 +83,6 @@ The following external files that are not part of UnoDOS 3.1 are included in thi
 distribution:
 
 BETADISK.SYS     - emulator
-TRDOS54T.KO      - firmware
+TRDOS-5.04T      - firmware
 CONFIG/TRDOS.CFG - config file
 VDISK            - mount command
