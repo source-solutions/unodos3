@@ -79,7 +79,7 @@ https://github.com/nagydani/dot-commands
 
 BETADISK EMULATION BY PHOENIX
 =============================
-The following external files that are not part of UnoDOS 3.1 are included in this
+The following external files that are not part of UnoDOS 3 are included in this
 distribution:
 
 BETADISK.SYS     - emulator
