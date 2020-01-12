@@ -36,6 +36,6 @@ The OS comprises:
 
 ## License
 
-Copyright &copy; 2017-2019 Source Solutions, Inc. All rights reserved.
+Copyright &copy; 2017-2020 Source Solutions, Inc. All rights reserved.
 
 Licensed under the [GNU General Public License](LICENSE).

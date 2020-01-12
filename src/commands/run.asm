@@ -1,5 +1,5 @@
 ;	// UnoDOS 3 - An operating system for the divMMC SD card interface.
-;	// Copyright (c) 2017-2019 Source Solutions, Inc.
+;	// Copyright (c) 2017-2020 Source Solutions, Inc.
 
 ;	// UnoDOS 3 is free software: you can redistribute it and/or modify
 ;	// it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
 ;	// You should have received a copy of the GNU General Public License
 ;	// along with UnoDOS 3. If not, see <http://www.gnu.org/licenses/>.
 
-	include "hookcodes.inc"
+	include "hookcode.inc"
 
 	org $2000
 
