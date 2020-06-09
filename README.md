@@ -12,7 +12,7 @@ The compiler is the _Zeus Command Line_ assembler.
 
 * Install _Wine_: `sudo apt-get install wine`
 
-### macOS
+### macOS (Mojave and earlier)
 
 1. Install _HomeBrew_ (https://brew.sh/):
 
