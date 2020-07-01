@@ -59,7 +59,7 @@ down <kbd>Shift</kbd> during boot.
 UnoDOS III includes only the `RUN` command. This is used to launch apps.
 You can use any commands that are compatible with the esxDOS 0.8.5 API.
 Place them in the DOS folder. You can find some useful commands here:
-https://github.com/nagydani/dot-commands
+<https://github.com/nagydani/dot-commands>
 
 ## BetaDisk emulation by Pheonix
 The following external files that are not part of UnoDOS III are included in this
