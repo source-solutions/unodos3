@@ -1,5 +1,3 @@
-Copyright © 2017-2020 Source Solutions, Inc.
-
 ## Warning
 This software may cause data loss.
 
@@ -23,39 +21,39 @@ Place the binary on the root of your SD card and power cycle your computer.
 
 ## Clean install (divMMC)
 1. Set write enable on the EEPROM.
-2. Install the firmware on your divMMC using the unodos.tap file.
+2. Install the firmware on your divMMC using the `unodos.tap` file.
 3. Set write protect on the EEPROM.
 4. Copy the DOS folder to the root folder of your SD card.
 
 ## Test install (divMMC)
 If you have an existing esxDOS system installed you can perform a test install.
-1. Copy the DOS folder to the root folder of your SD card.
-2. Copy unodos.tap to your SD card.
+1. Copy the `DOS` folder to the root folder of your SD card.
+2. Copy `unodos.tap` to your SD card.
 3. Set write protect on the EEPROM.
-4. From esxDOS, mount the unodos.tap file and load the flash utility.
-5. Press ENTER, then after installation hold SPACE and press RESET.
+4. From esxDOS, mount the `unodos.tap` file and load the flash utility.
+5. Press <kbd>Enter</kbd>, then after installation hold <kbd>Space</kbd> and press RESET.
 
 ## Upgrade (divMMC)
 If you have an existing esxDOS system installed you can convet it to UnoDOS.
-1. Copy the DOS folder to the root folder of your SD card.
-2. Copy unodos.tap to your SD card.
+1. Copy the `DOS` folder to the root folder of your SD card.
+2. Copy `unodos.tap` to your SD card.
 3. Set write enable on the EEPROM.
-4. From esxDOS, mount the unodos.tap file and load the flash utility.
+4. From esxDOS, mount the `unodos.tap` file and load the flash utility.
 5. Set write protect on the EEPROM.
 
 ## Upgrade (ZX-Uno)
-1. Copy the DOS folder to the root folder of your SD card.
-2. Rename UNODOS.ROM to ESXDOS.ZX1 and copy it to the root of your SD card.
+1. Copy the `DOS` folder to the root folder of your SD card.
+2. Rename `UNODOS.ROM` to `ESXDOS.ZX1` and copy it to the root of your SD card.
 3. From the BIOS, select "Upgrade ESXDOS for ZX".
 4. Restart your machine.
 
 ## Upgrade (ZEsarUX)
 1. Copy the DOS folder to the root folder of your SD image.
-2. Rename unodos.rom to esxmmc085.rom and copy it to the ZEsarUX folder.
+2. Rename `unodos.rom` to `esxmmc085.rom` and copy it to the ZEsarUX folder.
 
 ## Boot mode
 By default, UnoDOS III performs a silent boot. To display information, hold
-down SHIFT during boot.
+down <kbd>Shift</kbd> during boot.
 
 ## Commands
 UnoDOS III includes only the `RUN` command. This is used to launch apps.
@@ -64,11 +62,11 @@ Place them in the DOS folder. You can find some useful commands here:
 https://github.com/nagydani/dot-commands
 
 ## BetaDisk emulation by Pheonix
-The following external files that are not part of UnoDOS 3 are included in this
+The following external files that are not part of UnoDOS III are included in this
 distribution:
-```
-BETADISK.SYS     - emulator
-TRDOS-5.04T      - firmware
-CONFIG/TRDOS.CFG - config file
-VDISK            - mount command
-```
+* `BETADISK.SYS`: emulator
+* `TRDOS-5.04T`: firmware
+* `CONFIG/TRDOS.CFG`: config file
+* `VDISK`: mount command
+
+Copyright © 2017-2020 Source Solutions, Inc.
