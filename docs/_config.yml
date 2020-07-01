@@ -1,1 +1,8 @@
+title: UnoDOS III 3.1 Wolf
+description: The alternative operating system for divMMC. Finely tuned.
+google_analytics: 
+show_downloads: true
 theme: jekyll-theme-cayman
+
+gems:
+  - jekyll-mentions
