@@ -19,7 +19,7 @@
 
 
 ;	// VERSION
-	version equ "UnoDOS III Wolf ver 3.1.0-rc"
+	version equ "UnoDOS III Wolf ver 3.1.1"
 
 ;	// divIDE / divMMC trap addresses
 ;	//
