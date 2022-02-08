@@ -1,5 +1,6 @@
+cp rasm/rasm-deb-arm64 src/rasm
 cd src
-wine ../zeus/zcl kernel.asm
+./rasm -pasmo kernel.asm -ob ../bin/kernel.bin -sz -os ../bin/symbols.txt
 cd ../bin
 mv unodos0.sys unodos.sys
 cat unodos1.sys >> unodos.sys
