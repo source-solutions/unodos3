@@ -13,7 +13,7 @@ The compiler is the _RASM_ assembler.
 The OS comprises:
 
 * __KERNEL__: The interface between the divMMC hardware and the host machine.
-* __COMMANDS__: Small programs that provide shell functions when using UnoDOS III without SE Basic IV. 
+* __COMMANDS__: Small programs that provide shell functions when using UnoDOS 3 without SE Basic IV. 
 * __KEXTS__: Third-party kernel extensions that provide additional functionality.
 
 ## License
