@@ -7,7 +7,7 @@
 ;	// (at your option) any later version.
 ;	// 
 ;	// UnoDOS 3 is distributed in the hope that it will be useful,
-;	// but WITHOUT ANY WARRANTY; without even the implied warranty o;							// 
+;	// but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;	// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 ;	// GNU General Public License for more details.
 ;	// 
@@ -21,9 +21,9 @@
 ;	output_bin "../bin/unodos1.sys",$3000,upper_end-$3000
 
 ;	// RASM directives
-	save "../bin/unodos.rom",0,$2000
-	save "../bin/unodos0.sys",$2000,lower_end-$2000
-	save "../bin/unodos1.sys",$3000,upper_end-$3000
+	save "../bin/unodos.rom", 0, $2000
+	save "../bin/unodos0.sys", $2000, lower_end-$2000
+	save "../bin/unodos1.sys", $3000, upper_end-$3000
 
 	include "os.inc"
 	include "io.inc"
@@ -90,7 +90,7 @@ maskint:
 
 L0040:
 	defm "sys", 0;						// system file extension
-	defm "2020";						// year of release
+	defm "2022";						// year of release
 
 L0048:
 	ld a, (de);							//
@@ -228,7 +228,7 @@ L0107:
 	ld ($201f), a;						//
 	ld a, ($2d42);						//
 	cp $aa;								// SCREEN$, 170d
-	jr nz, L012A;						//
+	jr nz, L0124;						//
 	ld a, $7f;							// high byte of I/O address
 	in a, (ula);						// Read keyboard
 	rra;								//
@@ -237,7 +237,7 @@ L0107:
 
 ;	// start of init - make screen black
 ;	org $012a
-L012A:
+L0124:
 	xor a;								// LD A, 0
 	out (ula), a;						// black border
 	out ($ff), a;						// set low res screen
@@ -253,7 +253,8 @@ L012A:
 ; Check this divMMC device has more than 32K (4 pages) of memory
 	ld a, 4;							// Start at page 4
 
-L013B:
+;	org $013b
+L013D:
 	out (mmcram), a;					// set divMMC memory page
 	ld bc, $1fff;						// byte count
 	ld hl, $2000;						// source
@@ -267,17 +268,18 @@ L013B:
 	ld (hl), $c9;						// put a RET at 3d30h
 	dec a;								// page=page-1
 	cp $ff;								// COPY, 255d
-	jr nz, L013B;						// if we've not just done page 0, loop back
+	jr nz, L013D;						// if we've not just done page 0, loop back
 	ld a, 4;							//
 	out (mmcram), a;					// back to page 4
 	ld hl, $2000;						// address top 8K of ROM area
 	ld a, (hl);							// get value
 	inc (hl);							// increment it
 	cp (hl);							// check page 4 is writable
-	jr nz, L0169;						// if so, jump to L0169
+	jr nz, L016B;						// if so, jump to L016B
 	ld l, $1c;							// else?
 
-L0169:
+;	org $0169
+L016B:
 	xor a;								// LD A, 0
 	out (mmcram), a;					// Switch to page 0, CONMEM off, MAPRAM off
 	ld a, $aa;							//
@@ -342,15 +344,15 @@ L0169:
 	push af;							//
 	call file_test;						// failover to ROM for dos system file
 	pop af;								//
-	jr c, L0242;						//
+	jr c, L0232;						//
 	ld hl, msg_nmi;						//
 	call L0257;							//
 	call L02B3;							//
 	call L0272;							// ok or error for NMI system file
-	jr nz, L0242;						//
+	jr nz, L0232;						//
 	ld a, ($2e8c);						//
 	and a;								//
-	jr nz, L0242;						//
+	jr nz, L0232;						//
 	ld hl, msg_betadisk;				// "betadis"
 	call L0257;							//
 	call L02A1;							//
@@ -359,12 +361,13 @@ L0169:
 	pop af;								//
 	call L0272;							// ok or error for betadisk system file
 
-L0242:
+;	org $0242
+L0232:
 	ld a, $7f;							// high byte of I/O address
 	in a, (ula);						// read keyboard
 	rra;								//
 	jr c, L0248;						//
-	jr L0242;							//
+	jr L0232;							//
 
 	org $0248
 L0248:
@@ -858,7 +861,8 @@ L04FB:
 	sub c;								// 
 	ret;								// 
 
-L050D:
+;	org $050d
+L04FF:
 	push af;							// 
 	push ix;							// 
 	push hl;							// 
@@ -867,7 +871,8 @@ L050D:
 	ld c, mmcram;						// 
 	ld b, $7f;							// 
 
-L051A:
+;	org $051a
+L050C:
 	out (c), l;							// Set divMMC memory page...
 	ld a, (ix + 0);						// 
 	out (c), h;							// Set divMMC memory page...
@@ -875,20 +880,22 @@ L051A:
 	inc ix;								// 
 	inc de;								// 
 	and a;								// 
-	jr z, L052A;						// 
-	djnz L051A;							// 
+	jr z, L051C;						// 
+	djnz L050C;							// 
 
-L052A:
+;	org $052a
+L051C:
 	push ix;							// 
 	pop hl;								// 
 	pop ix;								// 
 	pop af;								// 
 	ret;								// 
 
-L0531:
+;	org $0531
+L0523:
 	push bc;							// 
 	cp '*';								// use current drive?
-	jr nz, L0546;						// 
+	jr nz, L0538;						// 
 	ld a, ($3df9);						// 
 	ld b, a;							// 
 	ld a, 0;							// 
@@ -899,7 +906,8 @@ L0531:
 	out (mmcram), a;					// divMMC RAM page 
 	ld a, c;							// 
 
-L0546:
+;	org $05046
+L0538:
 	push af;							// 
 	and %11111000;						// 
 	srl a;								// 
@@ -975,17 +983,18 @@ L0598:
 	inc de;								// 
 	jr L0598;							// 
 
+;	org $05a0
 vector_tbl:
 	defw L06A9;							// 
 	defw L0686;							// 
 	defw L05F3;							// 
 	defw L06A5;							// 
 	defw L064B;							// 
-	defw L050D;							// 
+	defw L04FF;							// 
 	defw L0643;							// 
 	defw L0619;							// 
 	defw L0694;							// 
-	defw L0531;							// 
+	defw L0523;							// 
 	defw L05BE;							// 
 	defw L05C3;							// 
 	defw L05DD;							// 
@@ -1126,7 +1135,7 @@ L065B:
 
 L066B:
 	out (c), l;							// 
-	jp L052A;							// 
+	jp L051C;							// 
 
 L0670:
 	defb 0;								// null terminator
@@ -1185,19 +1194,23 @@ L06A9:
 	inc hl;								// 
 	ret;								// 
 
+;	org $06b2
 msg_betadisk:
 	defm "betadisk", 0;					// null ternimated message
 
+;	org $06bb
 msg_failed:
 	defb $17, $0c, $01;					// TAB 24
 	defm ": failed";					// 
 	defb $0d, 0;						// carriage return, null terminator
 
+;	org $06c8
 msg_ok:
 	defb $17, $0c, $01;					// TAB 27
 	defm ": ok";						// 
 	defb $0d, 0;						// carriage return, null terminator
 
+;	org $06d1
 msg_nmi:
 	defm "nmi", 0;						// null ternimated message
 
@@ -1500,6 +1513,7 @@ L0836:
 
 ;	// called from dirs.io
 ;	// output a string of characters, zero terminated
+;	org $083e
 pr_str:
 	ld a, (hl);							// get value at (HL)
 	and a;								// test for zero
@@ -2333,6 +2347,7 @@ L0C85:
 	jp L1FFB;							// 
 
 ;	// called from files.io
+;	org $0c90
 pr_msg:
 	ld a, (hl);							// 
 	cp $7f;								// 
@@ -4844,12 +4859,14 @@ L1B2B:
 	org $1b37
 copyright:
 	defb version, $0d, $0d, $7f;		// 
-	defb " 2020 Source Solutions, Inc.", $0d, 0
+	defb " 2022 Source Solutions, Inc.", $0d, 0
 
+;	org $1b59
 logo:
 	ld hl, boot_icon;					// start of data
 	ld a, 18;							// line count
 
+;	org $1b5e
 gfx_loop:
 	ld e, (hl);							// get low byte of screen address to D
 	inc hl;								// point to next byte
@@ -4860,14 +4877,17 @@ gfx_loop:
 	dec a;								// reduce count
 	jr nz, gfx_loop;					// loop until done
 
+;	org $1b6a
 attributes:
 	ld hl, 22862;						// 
 	ld de, 28;							// 
 	ld b, 4;							// 
 
+;	org $1b72
 outer_loop:
 	ld a, 4;							// 
 
+;	org $1b74
 inner_loop:
 	ld (hl), %01000111;					// bright white
 	inc hl;								// 
@@ -4877,6 +4897,7 @@ inner_loop:
 	djnz outer_loop;					// do four rows
 	ret;								// 
 
+;	org $1b7e
 boot_icon:
 	defw 20302;
 	defb %00000000, %01100000, %00000110, %00000000;
@@ -4915,6 +4936,7 @@ boot_icon:
 	defw 18606;
 	defb %00000000, %00000011, %11000000, %00000000;
 
+;	org $1bea
 boot_chime:
 	ld hl, $fffe;						// L = AY-0, H = AY-1 / register port
 	ld d, $bf;							// D = data port
@@ -4934,6 +4956,7 @@ boot_chime:
 	
 	ld a, 11;							// number of registers to write
 
+;	org $1c06
 out_11:
 	ex af, af';							// store count
 	ld a, (ix);							// data to A
@@ -4946,6 +4969,7 @@ out_11:
 	jr nz, out_11;						// loop until done
 	ret;								// end of subroutine
 
+;	org $1c16
 out_pair:
 	ld b, h;							// set register port
 	out (c), e;							// write value in E to port
@@ -4953,7 +4977,7 @@ out_pair:
 	out (c), a;							// write value in A to port
 	ret;								// end of subroutine
 
-	org $1C58
+	org $1c58
 sys_filename:
 	defm "unodos";						// UNODOS.SYS filename
 	defb 0;								// end marker
@@ -5286,6 +5310,7 @@ L1E30:
 	ld a, b;							// restore value of A
 	ret;								// and exit
 
+;	org $1e39
 data:
 	defb 61, 13;						// r0-1		C1
 	defb 159, 6;						// r2-3		C2				
@@ -5466,6 +5491,7 @@ L1F32:
 	djnz L1F23;							// 
 	ret;								// 
 
+;	org $1f3f
 file_test:
 	ld hl, msg_ok;						// OK
 	jp nc, L027A;						// jump if so, else...
@@ -5497,11 +5523,13 @@ file_test:
 	out (mmcram), a;					// divMMC page 0
 	ret;								// end of subroutine
 
+;	org $1f7e
 not_cordy:
 	call L00EF;							// restore ROM 1
 	ld hl, msg_failed;					// error message
 	jp pr_str;							// exit via pr_str
 
+;	org $1f87
 get_rom_byte:
 	ld a, ($3200);						// contents of byte at $3200 in ROM 0 to A
 	ret;								// end of subroutine
@@ -5986,7 +6014,7 @@ L2299:
 	ret;								// 
 
 	cp $FF;								// 
-	jp z, L012A;						// 
+	jp z, L0124;						// 
 	cp $FE;								// 
 	jp z, L0251;						// 
 	cp $FC;								// 
@@ -6154,6 +6182,7 @@ L239E:
 	inc de;								// 
 	jr L239E;							// 
 
+;	org $23a5
 tk_overloads:
 	defb 0, 0, 0, 0, 0; 				// TOKENs that invoke BFILE.SYS
 	defb "bfile";						// 
