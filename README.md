@@ -1,4 +1,4 @@
-# UnoDOS III 3.1 Wolf
+# UnoDOS 3.12 Wolf
 
 The alternative operating system for divMMC. Finely tuned.
 
@@ -6,25 +6,7 @@ The alternative operating system for divMMC. Finely tuned.
 
 The preferred IDE is _Visual Studio Code_ (https://code.visualstudio.com/) with Imanolea's _Z80 Assembly_ extension (install from the app).
 
-The compiler is the _Zeus Command Line_ assembler.
-
-### Linux
-
-* Install _Wine_: `sudo apt-get install wine`
-
-### macOS (Mojave and earlier)
-
-1. Install _HomeBrew_ (https://brew.sh/):
-
-   `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
-
-2. After _HomeBrew_ is installed, install _Wine_:
-
-   `brew install wine`
-
-### Windows
-
-No additional prerequisites.
+The compiler is the _RASM_ assembler.
 
 ## Components
 
@@ -36,6 +18,6 @@ The OS comprises:
 
 ## License
 
-Copyright &copy; 2017-2020 Source Solutions, Inc. All rights reserved.
+Copyright &copy; 2017-2022 Source Solutions, Inc. All rights reserved.
 
 Licensed under the [GNU General Public License](LICENSE).
