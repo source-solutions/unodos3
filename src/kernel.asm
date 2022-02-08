@@ -386,7 +386,7 @@ L0251:
 L0257:
 	call L02EF;							//
 	push hl;							//
-	ld de, $0005;						//
+	ld de, 5;							//
 	add hl, de;							//
 	call pr_str;						//
 	pop hl;								//
@@ -752,7 +752,7 @@ L0430:
 	inc hl;								// 
 	rst $30;							// 
 	ld bc, $e5c5;						// 
-	ld bc, $00ff;						// 
+	ld bc, $ff;							// 
 	xor a;								// 
 	cpir;								// 
 	call L0458;							// 
@@ -846,7 +846,7 @@ L04E7:
 	push hl;							// 
 	push bc;							// 
 	ld hl, $2cf1;						// 
-	ld bc, $000f;						// 
+	ld bc, $0f;							// 
 	xor a;								// 
 	cpir;								// 
 	ld a, $0c;							// 
@@ -1227,11 +1227,11 @@ L06E8:
 	and a;								// 
 	ret z;								// 
 	push hl;							// 
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	rst $08;							// 
 	defb f_mount;						// 
 	pop hl;								// 
-	ld de, $0006;						// 
+	ld de, 6;							// 
 	add hl, de;							// 
 	jr L06E8;							// 
 	call L0714;							// 
@@ -1259,7 +1259,7 @@ L06E8:
 L0714:
 	push bc;							// 
 	ld hl, $2cf0;						// 
-	ld bc, $000f;						// 
+	ld bc, $0f;							// 
 	cpir;								// 
 	pop bc;								// 
 	ret nz;								// 
@@ -1553,11 +1553,11 @@ L0861:
 
 L086a:
 	call L087D;							// 
-	ld de, $0064;						// 
+	ld de, $64;							// 
 	call L087D;							// 
 
 L0873:
-	ld de, $000a;						// 
+	ld de, $0a;							// 
 	call L087D;							// 
 	ld e, 1;							// 
 	ld c, $30;							// 
@@ -1577,7 +1577,7 @@ L087F:
 	jr nz, L0896;						// 
 	ld a, c;							// 
 	or c;								// 
-	call nz, restart_10;						// 
+	call nz, restart_10;				// 
 	ret;								// 
 
 L0894:
@@ -1710,7 +1710,7 @@ L091B:
 	add hl, bc;							// 
 	exx;								// 
 	add hl, bc;							// 
-	call po, $000a;						// 
+	call po, $0a;						// 
 	jr nz, L093D;						// 
 	jr nz, L0904;						// 
 	add hl, bc;							// 
@@ -1789,7 +1789,7 @@ L093D:
 	add hl, de;							// 
 	dec bc;								// 
 
-;	// RST08_handler;							// 
+;	// RST08_handler
 L0985:
 	ex (sp), hl;						//
 	ld ($3dfa), a;						// save parameter in A
@@ -1848,6 +1848,7 @@ L09C0:
 	or a;								// 
 	ret;								// 
 
+;	// default date and time for files
 	ld de, $6000;						// 12:00:00
 	ld bc, $28c2;						// June 2, 2000
 	or a;								// 
@@ -2199,7 +2200,7 @@ L0B8F:
 	inc h;								// 
 
 L0BAF:
-	ld bc, $0004;						// 
+	ld bc, 4;							// 
 	ldir;								// 
 	ld c, 6;							// 
 	jr L0BFE;							// 
@@ -2241,7 +2242,7 @@ L0BD5:
 	inc hl;								// 
 	inc hl;								// 
 	inc hl;								// 
-	ld bc, $0004;						// 
+	ld bc, 4;							// 
 	ldir;								// 
 	pop bc;								// 
 	pop af;								// 
@@ -2251,14 +2252,14 @@ L0BD5:
 
 L0BED:
 	pop hl;								// 
-	ld bc, $0028;						// 
+	ld bc, $28;							// 
 	add hl, bc;							// 
 	pop bc;								// 
 	djnz L0BC1;							// 
 	xor a;								// 
 	ld (de), a;							// 
 	inc de;								// 
-	ld hl, $0d20e;						// 
+	ld hl, $d20e;						// 
 	add hl, de;							// 
 	ld b, h;							// 
 	ld c, l;							// 
@@ -2279,7 +2280,7 @@ L0C06:
 	defw syntax_z;						// 
 	ld hl, $16c5;						// 
 	jp z, L1FFB;						// 
-	ld hl, $0000;						// used to zero out system variables
+	ld hl, 0;							// used to zero out system variables
 	ld (iy + _flag_x), h;				// clear flag_x
 	ld (iy + _x_ptr_h), h;				// clear x_ptr to hide error marker
 	ld (defadd), hl;					// set no function to evaluate
@@ -2495,7 +2496,7 @@ L0D72:
 	ld a, ($3df8);						// 
 	out (mmcram), a;					// set divMMC RAM page...
 	res 3, (iy + _tv_flag);				// 
-	ld hl, $0058;						// 
+	ld hl, $58;							// 
 	rst $30;							// 
 	inc bc;								// 
 	jp z, L1FFB;						// 
@@ -2508,14 +2509,14 @@ L0D72:
 
 L0D94:
 	call L0DCF;							// 
-	jp c, $0020;						// 
+	jp c, $20;							// 
 	call L0DEB;							// 
 	ld hl, ($2e46);						// 
 	ld a, 2;							// 
 	out (mmcram), a;					// divMMC RAM page 2
 	call L2000;							// 
 	ld ($3de8), hl;						// 
-	jp c, $0020;						// 
+	jp c, $20;							// 
 	ld a, 0;							// 
 	out (mmcram), a;					// divMMC RAM page 0
 	jp L24CD;							// 
@@ -2612,7 +2613,7 @@ L0DF1:
 	push iy;							// 
 	pop hl;								// 
 	ld l, $18;							// 
-	ld bc, $0004;						// 
+	ld bc, 4;							// 
 	rst $30;							// 
 
 L0E40:
@@ -2630,7 +2631,7 @@ L0E40:
 L0E4C:
 	ld hl, $3dfa;						// 
 	ld (hl), a;							// 
-	ld bc, $0001;						// 
+	ld bc, 1;							// 
 	rst $30;							// 
 	ld b, $c9;							// 
 	push bc;							// 
@@ -2671,8 +2672,8 @@ L0E7A:
 
 L0E80:
 	ld hl, $2d00;						// 
-	ld bc, $0000;						// 
-	ld de, $0000;						// 
+	ld bc, 0;							// 
+	ld de, 0;							// 
 	push hl;							// 
 	call L1096;							// 
 	pop hl;								// 
@@ -2739,7 +2740,7 @@ L0EE9:
 	push iy;							// 
 	pop de;								// 
 	ld e, 4;							// 
-	ld bc, $0005;						// 
+	ld bc, 5;							// 
 	ldir;								// 
 	pop de;								// 
 	cp 1;								// 
@@ -2776,7 +2777,7 @@ L0EE9:
 	srl h;								// 
 	rr l;								// 
 	ld (iy + 66), l;					// 
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	call L0831;							// 
 	jr L0F68;							// 
 
@@ -2856,8 +2857,8 @@ L0FBE:
 	dec a;								// 
 	jr nz, $100f;						// 
 	ld hl, $3e00;						// 
-	ld bc, $0000;						// 
-	ld de, $0001;						// 
+	ld bc, 0;							// 
+	ld de, 1;							// 
 	push hl;							// 
 	call L1096;							// 
 	pop hl;								// 
@@ -2896,8 +2897,8 @@ L0FBE:
 	rst $38;							// 
 	ld de, $ffff;						// 
 	call L11D0;							// 
-	ld bc, $0000;						// 
-	ld de, $0002;						// 
+	ld bc, 0;							// 
+	ld de, 2;							// 
 	jp L11B6;							// 
 
 L1021:
@@ -3220,8 +3221,8 @@ L11DD:
 	rst $30;							// 
 	nop;								// 
 	ld hl, $3e00;						// 
-	ld bc, $0000;						// 
-	ld de, $0001;						// 
+	ld bc, 0;							// 
+	ld de, 1;							// 
 	jp L10A0;							// 
 
 L11FB:
@@ -3295,7 +3296,7 @@ L1265:
 	ld a, d;							// 
 	or e;								// 
 	jr nz, L127D;						// 
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	ld d, (iy + 36);					// 
 	ld e, (iy + 35);					// 
 	ld a, (iy + 66);					// 
@@ -3369,7 +3370,7 @@ L12C7:
 	inc hl;								// 
 	ld d, (hl);							// 
 	dec hl;								// 
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	ld a, d;							// 
 
 L12E7:
@@ -3584,7 +3585,7 @@ L13F8:
 	push bc;							// 
 	push hl;							// 
 	ld hl, $140b;						// 
-	ld bc, $000c;						// 
+	ld bc, $0c;							// 
 	scf;								// 
 	cpir;								// 
 	pop hl;								// 
@@ -3726,7 +3727,7 @@ L14AA:
 	jr nz, L14EA;						// 
 
 L14BD:
-	ld bc, $0020;						// 
+	ld bc, $20;							// 
 	add hl, bc;							// 
 	jr L14A0;							// 
 
@@ -4008,7 +4009,7 @@ L1655:
 	ld a, (iy + 28);					// 
 	cp 1;								// 
 	ret z;								// 
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	ret;								// 
 
 L165F:
@@ -4064,7 +4065,7 @@ L1699 equ $1699
 	jp z, L10F3;						// 
 	call L16CB;							// 
 	ret c;								// 
-	ld de, $0014;						// 
+	ld de, $14;							// 
 	add hl, de;							// 
 	call L19FA;							// 
 	ld (hl), c;							// 
@@ -4219,7 +4220,7 @@ L1794:
 
 L17A0:
 	ld hl, $3c06;						// 
-	ld bc, $000b;						// 
+	ld bc, $0b;							// 
 	ldir;								// 
 	xor a;								// 
 	ld (de), a;							// 
@@ -4316,7 +4317,7 @@ L1815:
 	push de;							// 
 	ld l, (ix + 28);					// 
 	ld h, (ix + 29);					// 
-	ld de, $000c;						// 
+	ld de, $0c;							// 
 	add hl, de;							// 
 	call L17AC;							// 
 	pop de;								// 
@@ -4345,14 +4346,14 @@ L184A:
 	call L18D0;							// 
 	ld l, (ix + 28);					// 
 	ld h, (ix + 29);					// 
-	ld de, $001c;						// 
+	ld de, $1c;							// 
 	add hl, de;							// 
 	call L1897;							// 
 	pop af;								// 
 	bit 6, a;							// 
 	jr z, $1894;						// 
 	ld hl, $2d00;						// 
-	ld bc, $0080;						// 
+	ld bc, $80;							// 
 	call L1681;							// 
 	ret c;								// 
 	call L18B3;							// 
@@ -4365,7 +4366,7 @@ L184A:
 
 L188B:
 	ld de, ($3c23);						// 
-	ld bc, $0008;						// 
+	ld bc, 8;							// 
 	rst $30;							// 
 	ld b, $c3;							// 
 	ld h, a;							// 
@@ -4400,8 +4401,8 @@ L18AD:
 
 L18B3:
 	push hl;							// 
-	ld de, $0040;						// 
-	ld bc, $0009;						// 
+	ld de, $40;							// 
+	ld bc, 9;							// 
 
 L18BA:
 	ld a, (de);							// 
@@ -4667,7 +4668,7 @@ L1A36:
 	call L1A43;							// 
 
 L1A39:
-	ld de, $0020;						// 
+	ld de, $20;							// 
 	add hl, de;							// 
 	djnz L1A28;							// 
 	pop de;								// 
@@ -4810,7 +4811,7 @@ L1AF4:
 	pop hl;								// 
 	ret c;								// 
 	push hl;							// 
-	ld hl, $0080;						// 
+	ld hl, $80;							// 
 	ld a, (iy + _flags);				// 
 	and %00000111;						// 
 	dec a;								// 
@@ -4899,6 +4900,8 @@ inner_loop:
 
 ;	org $1b7e
 boot_icon:
+
+;	// wolf
 	defw 20302;
 	defb %00000000, %01100000, %00000110, %00000000;
 	defw 18542;
@@ -4935,6 +4938,82 @@ boot_icon:
 	defb %00000000, %00010100, %00101000, %00000000;
 	defw 18606;
 	defb %00000000, %00000011, %11000000, %00000000;
+
+;	// UnoDOS 3 logo
+;	defw 20302;
+;	defb %00000001, %10011100, %11111111, %00000000;
+;	defw 18542;
+;	defb %00000001, %10011110, %11111111, %10000000;
+;	defw 18798;
+;	defb %00000001, %10011111, %11000001, %10000000;
+;	defw 19054;
+;	defb %00000001, %10011011, %11011001, %10000000;
+;	defw 19310;
+;	defb %00000001, %11111001, %11011111, %10000000;
+;	defw 19566;
+;	defb %00000000, %11110000, %11001111, %00000000;
+;	defw 19822;
+;	defb %00000000, %00000000, %00000000, %00000000;
+;	defw 20078;
+;	defb %00000001, %11100011, %11000111, %10000000;
+;	defw 20334;
+;	defb %00000001, %11110111, %11101111, %10000000;
+;	defw 18574;
+;	defb %00000001, %10110110, %01101100, %00000000;
+;	defw 18830;
+;	defb %00000001, %10110110, %01101111, %00000000;
+;	defw 19086;
+;	defb %00000001, %10110110, %01100111, %10000000;
+;	defw 19342;
+;	defb %00000001, %10110110, %01100001, %10000000;
+;	defw 19598;
+;	defb %00000001, %11110111, %11101111, %10000000;
+;	defw 19854;
+;	defb %00000001, %11100011, %11001111, %00000000;
+;	defw 20110;
+;	defb %00000000, %00000000, %00000000, %00000000;
+;	defw 20366;
+;	defb %00000001, %10110110, %11110111, %10000000;
+;	defw 18606;
+;	defb %00000001, %10110110, %11110111, %10000000;
+
+;	// Chloe logo
+;	defw 20302;
+;	defb %00000000, %00000111, %11100000, %00000000;
+;	defw 18542;
+;	defb %00000000, %00011111, %11111000, %00000000;
+;	defw 18798;
+;	defb %00000000, %00111111, %00001100, %00000000;
+;	defw 19054;
+;	defb %00000000, %01111100, %00000000, %00000000;
+;	defw 19310;
+;	defb %00000000, %11111001, %11110000, %00000000;
+;	defw 19566;
+;	defb %00000000, %11110011, %11111100, %00000000;
+;	defw 19822;
+;	defb %00000001, %11110111, %11111110, %00000000;
+;	defw 20078;
+;	defb %00000001, %11110111, %00011110, %00000000;
+;	defw 20334;
+;	defb %00000001, %11110110, %00001111, %00000000;
+;	defw 18574;
+;	defb %00000001, %11110011, %01001111, %00000000;
+;	defw 18830;
+;	defb %00000001, %11110001, %11001111, %00000000;
+;	defw 19086;
+;	defb %00000001, %11111000, %00011111, %00000000;
+;	defw 19342;
+;	defb %00000000, %11111110, %01111111, %00000000;
+;	defw 19598;
+;	defb %00000000, %11111111, %11111110, %00000000;
+;	defw 19854;
+;	defb %00000000, %01111111, %11111110, %00000000;
+;	defw 20110;
+;	defb %00000000, %00111111, %11111100, %00000000;
+;	defw 20366;
+;	defb %00000000, %00011111, %11111000, %00000000;
+;	defw 18606;
+;	defb %00000000, %00000111, %11100000, %00000000;
 
 ;	org $1bea
 boot_chime:
@@ -5038,7 +5117,7 @@ L1C8B:
 	ld a, ($3dfa);						// 
 	call L1E8A;							// 
 	ld a, $7a;							// 
-	ld de, $0000;						// 
+	ld de, 0;							// 
 	call L1D81;							// 
 	ret c;								// 
 	ld a, b;							// 
@@ -5066,7 +5145,7 @@ L1C8B:
 	ld (de), a;							// 
 	pop hl;								// 
 	ld de, ($3df2);						// 
-	ld bc, $0008;						// 
+	ld bc, 8;							// 
 	rst $30;							// 
 	ld b, $fd;							// 
 	ld a, (hl);							// 
@@ -5090,7 +5169,7 @@ L1D00:
 	ld hl, $1d20;						// 
 
 L1D10:
-	ld bc, $0078;						// 
+	ld bc, $78;							// 
 
 L1D13:
 	push bc;							// 
@@ -5138,7 +5217,7 @@ L1D45:
 
 L1D50:
 	ld a, $40;							// 
-	ld de, $0000;						// 
+	ld de, 0;							// 
 	push bc;							// 
 	call L1D74;							// 
 	pop bc;								// 
@@ -5156,7 +5235,7 @@ L1D5E:
 	ld a, $41;							// 
 
 L1D67:
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	ld d, b;							// 
 	ld e, c;							// 
 
@@ -5170,7 +5249,7 @@ L1D71:
 	jr L1D5E;							// 
 
 L1D74:
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	call L1D9A;							// 
 	ld b, a;							// 
 	and %11111110;						// 
@@ -5244,9 +5323,9 @@ L1DC6:
 	ret;								// 
 
 ;	// Poll the SPI port up to 255*50 times, waiting for a non-FFh value to be returned
-;	// Return results in A;							// 
+;	// Return results in A;
 L1DD2:
-	ld bc, $0032;						// number of retries (C)=50*255 (12750)
+	ld bc, $32;							// number of retries (C)=50*255 (12750)
 
 L1DD5:
 	in a, (mmcspi);						// read divMMC SPI port
@@ -5280,7 +5359,7 @@ L1DE0:
 	jr c, L1E30;						// 
 	ld a, $fe;							// 
 	out (mmcspi), a;					// write FE to divMMC SPI port
-	ld bc, $00eb;						// 
+	ld bc, $eb;							// 
 	otir;								// 
 	otir;								// 
 	ld a, $ff;							// 
@@ -5349,7 +5428,7 @@ L1E71:
 L1E75:
 	call L1DC4;							// 
 	jr c, L1E71;						// 
-	ld bc, $00eb;						// 
+	ld bc, $eb;							// 
 	inir;								// read ?255? bytes from divMMC SPI port to (HL)
 	inir;								// read ?255? bytes from divMMC SPI port to (HL)
 	nop;								// 
@@ -5428,7 +5507,7 @@ L1EBC:
 	inc b;								// 
 	pop af;								// 
 	add a, b;							// 
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	call L1EF8;							// 
 	ld e, d;							// 
 	ld d, c;							// 
@@ -5449,7 +5528,7 @@ L1EF8:
 	ret;								// 
 
 L1F04:
-	ld bc, $0000;						// 
+	ld bc, 0;							// 
 	ld d, b;							// 
 	ld e, c;							// 
 	ld hl, $3e00;						// 
@@ -5463,7 +5542,7 @@ L1F04:
 	ret nz;								// 
 	push iy;							// 
 	pop hl;								// 
-	ld de, $0008;						// 
+	ld de, 8;							// 
 	add hl, de;							// 
 	ex de, hl;							// 
 	ld b, 4;							// 
@@ -5631,11 +5710,11 @@ L202B:
 
 L202F:
 	ld ($2E61), sp;						// 
-	ld sp, $2E61;						// 
+	ld sp, $2e61;						// 
 	push af;							// 
 	ld a, r;							// 
 	push af;							// 
-	ld sp, $3DE8;						// 
+	ld sp, $3de8;						// 
 	ld a, ($2E7A);						// 
 	push hl;							// 
 	push de;							// 
@@ -5647,7 +5726,7 @@ L202F:
 	pop bc;								// 
 	ld a, b;							// 
 	ld ($2E7A), a;						// 
-	ld a, $0F;							// 
+	ld a, $0f;							// 
 	ld ($201F), a;						// 
 	pop bc;								// 
 	pop de;								// 
@@ -5658,8 +5737,8 @@ L202F:
 	ld ($2E61), sp;						// 
 
 L2064:
-	ld sp, $2E5D;						// 
-	ld a, ($2E5D);						// 
+	ld sp, $2e5d;						// 
+	ld a, ($2e5d);						// 
 	and 4
 	ld ($2E5D), a;						// 
 	push ix;							// 
@@ -5674,33 +5753,33 @@ L2064:
 	push de;							// 
 	push hl;							// 
 	ld a, i;							// 
-	ld ($2E4A), a;						// 
-	ld sp, $3DE8;						// 
-	ld a, $E9;							// 
+	ld ($2e4a), a;						// 
+	ld sp, $3de8;						// 
+	ld a, $e9;							// 
 	call L21E7;							// 
 	ld a, ($5800);						// 
 	rrca;								// 
 	rrca;								// 
 	rrca;								// 
 	and 7;								//
-	ld ($2E64), a;						// 
+	ld ($2e64), a;						// 
 	call L2140;							// 
-	ld a, $01;							// 
+	ld a, 1;							// 
 	ei;									// 
 	halt;								// 
-	ld ($2E63), a;						// 
+	ld ($2e63), a;						// 
 	im 1;								// 
 	call L215E;							// 
 	call L218A;							// 
-	ld hl, ($2E61);						// 
+	ld hl, ($2e61);						// 
 	push hl;							// 
 	ld a, (hl);							// 
 	inc hl;								// 
 	ld h, (hl);							// 
 	ld l, a;							// 
-	ld ($2E65), hl;						// 
+	ld ($2e65), hl;						// 
 	pop hl;								// 
-	ld a, ($2E68);						// 
+	ld a, ($2e68);						// 
 	cp 2;								//
 	jr nz, L20BE;						// 
 	inc hl;								// 
@@ -5710,42 +5789,42 @@ L2064:
 L20BE:
 	ld a, ($3DF8);						// 
 	ld ($2E79), a;						// 
-	ld hl, $2E4A;						// 
-	call $2F00;							// 
+	ld hl, $2e4a;						// 
+	call $2f00;							// 
 	ld a, ($2E79);						// 
-	ld ($3DF8), a;						// 
-	ld a, ($2E68);						// 
+	ld ($3df8), a;						// 
+	ld a, ($2e68);						// 
 	cp 2;								//
 	jr nz, L20DF;						// 
-	ld hl, ($2E61);						// 
+	ld hl, ($2e61);						// 
 	dec hl;								// 
 	dec hl;								// 
-	ld ($2E61), hl;						// 
+	ld ($2e61), hl;						// 
 
 L20DF:
-	ld a, $F5;							// 
+	ld a, $f5;							// 
 	call L21E7;							// 
 	im 1;								// 
 	ei;									// 
 	halt;								// 
 	di;									// 
-	ld a, ($2E67);						// 
-	ld bc, $7FFD;						// 
+	ld a, ($2e67);						// 
+	ld bc, $7ffd;						// 128 RAM paging port
 	out (c), a;							// 
-	ld hl, $2E69;						// 
+	ld hl, $2e69;						// 
 	call L2177;							// 
-	ld a, ($2E5D);						// 
+	ld a, ($2e5d);						// 
 	bit 2, a;							// 
-	ld hl, $0086;						// 
+	ld hl, $86;							// 
 	jr nz, L2109;						// 
 	inc hl;								// 
-	ld a, ($2E5E);						// 
+	ld a, ($2e5e);						// 
 	inc a;								// 
-	ld ($2E5E), a;						// 
+	ld ($2e5e), a;						// 
 
 L2109:
-	ld ($213E), hl;						// 
-	ld hl, $2E64;						// 
+	ld ($213e), hl;						// 
+	ld hl, $2e64;						// 
 	ld a, (hl);							// 
 	out (ula), a;						// 
 	dec hl;								// 
@@ -5759,7 +5838,7 @@ L2109:
 	im 2;								// 
 
 L2120:
-	ld hl, $2E4A;						// 
+	ld hl, $2e4A;						// 
 	ld a, (hl);							// 
 	ld i, a;							// 
 	inc hl;								// 
@@ -5778,12 +5857,12 @@ L2120:
 	pop af;								// 
 	ld r, a;							// 
 	pop af;								// 
-	ld sp, ($2E61);						// 
+	ld sp, ($2e61);						// 
 	jp start;							// 
 
 L2140:
-	ld hl, $3E00;						// 
-	ld de, $3E01;						// 
+	ld hl, $3e00;						// 
+	ld de, $3e01;						// 
 	ld bc, $0100;						// 
 	ld a, h;							// 
 	ld i, a;							// 
@@ -5792,8 +5871,8 @@ L2140:
 	ldir;								// 
 	ld h, a;							// 
 	ld l, a;							// 
-	ld de, $215C;						// 
-	ld (hl), $C3;						// 
+	ld de, $215c;						// 
+	ld (hl), $c3;						// 
 	inc hl;								// 
 	ld (hl), e;							// 
 	inc hl;								// 
@@ -5804,15 +5883,15 @@ L2140:
 	ret;								// 
 
 L215E:
-	ld hl, $2E69;						// 
-	ld de, restart_10;						// 
+	ld hl, $2e69;						// 
+	ld de, restart_10;					// 
 
 L2164:
-	ld bc, $FFFD;						// 
+	ld bc, $fffd;						// AY port
 	out (c), d;							// 
 	in a, (c);							// 
 	ld (hl), a;							// 
-	ld b, $BF;							// 
+	ld b, $bf;							// 
 	xor a;								// 
 	out (c), a;							// 
 	inc hl;								// 
@@ -5822,12 +5901,12 @@ L2164:
 	ret;								// 
 
 L2177:
-	ld de, restart_10;						// 
+	ld de, restart_10;					// 
 
 L217A:
-	ld bc, $FFFD;						// 
+	ld bc, $fffd;						// AY port
 	out (c), d;							// 
-	ld b, $BF;							// 
+	ld b, $bf;							// 
 	ld a, (hl);							// 
 	out (c), a;							// 
 	inc hl;								// 
@@ -5837,30 +5916,30 @@ L217A:
 	ret;								// 
 
 L218A:
-	ld hl, $C000;						// 
-	ld de, $3E00;						// 
-	ld bc, $0006;						// 
+	ld hl, $c000;						// 
+	ld de, $3e00;						// 
+	ld bc, 6;							// 
 	push de;							// 
 	push hl;							// 
 	push bc;							// 
 	ldir;								// 
 	pop bc;								// 
 	pop de;								// 
-	ld hl, $1C58;						// 
+	ld hl, $1c58;						// 
 	push de;							// 
 	push bc;							// 
 	ldir;								// 
-	ld a, ($2E67);						// 
+	ld a, ($2e67);						// 
 	ld c, 0;							// 
 
 L21A6:
 	push af;							// 
 	exx;								// 
-	ld bc, $7FFD;						// 
+	ld bc, $7ffd;						// 128 RAM port 
 	out (c), a;							// 
 	exx;								// 
-	ld de, $C000;						// 
-	ld hl, $1C58;						// 
+	ld de, $c000;						// 
+	ld hl, $1c58;						// 
 	ld b, 6
 
 L21B6:
@@ -5872,7 +5951,7 @@ L21B6:
 	djnz L21B6;							// 
 	inc c;								// 
 	pop af;								// 
-	ld ($2E67), a;						// 
+	ld ($2e67), a;						// 
 
 L21C3:
 	inc a;								// 
@@ -5880,7 +5959,7 @@ L21C3:
 	and 7
 	ld a, b;							// 
 	jr nz, L21A6;						// 
-	ld a, ($2E67);						// 
+	ld a, ($2e67);						// 
 	exx;								// 
 	out (c), a;							// 
 	exx;								// 
@@ -5901,11 +5980,11 @@ L21de:
 	ret z;								// 
 	inc a;								// 
 	and 7
-	ld ($2E68), a;						// 
+	ld ($2e68), a;						// 
 	ret;								// 
 
 L21E7:
-	ld hl, $2E5E;						// 
+	ld hl, $2e5e;						// 
 	ld b, a;							// 
 	ld a, (hl);							// 
 	and $80;							// 
@@ -5918,26 +5997,26 @@ L21E7:
 	ret;								// 
 
 L21F6:
-	ld hl, $5B00;						// 
+	ld hl, $5b00;						// ZX printer buffer
 	push hl;							// 
-	ld de, $3E00;						// 
-	ld bc, $000E;						// 
+	ld de, $3e00;						// 
+	ld bc, $0e;							// 
 	push bc;							// 
 	ldir;								// 
 	pop bc;								// 
 	pop de;								// 
 	ld hl, $2234;						// 
 	ldir;								// 
-	ld ($3E10), sp;						// 
-	ld sp, $5B0E;						// 
-	ld hl, $5B00;						// 
+	ld ($3e10), sp;						// 
+	ld sp, $5b0e;						// 
+	ld hl, $5b00;						// ZX printer buffer 
 	call L1FFB;							// 
-	ld sp, ($3E10);						// 
-	ld hl, $3E00;						// 
-	ld de, $5B00;						// 
-	ld bc, $000E;						// 
+	ld sp, ($3e10);						// 
+	ld hl, $3e00;						// 
+	ld de, $5b00;						// ZX printer buffer
+	ld bc, $0e;							// 
 	ldir;								// 
-	cp $AF;								// CODE
+	cp $af;								// CODE
 	push af;							// 
 	ld a, $10;							// 
 	jr z, L222F;						// 
@@ -5951,23 +6030,23 @@ L222F:
 	ld a, ($0001);						// 
 	jp $3DFD;							// 
 	ld de, 0;							// 
-	ld hl, $2D4E;						// 
+	ld hl, $2d4e;						// 
 	call L2264;							// 
 	jp L1FFA;							// 
 	rst $28;							// 
-	ld ($0D22), hl;						// 
+	ld ($0d22), hl;						// 
 	rst $28;							// 
-	ld bc, $0022;						// 
-	ld ($F90D), hl;						// 
+	ld bc, $22;							// 
+	ld ($f90d), hl;						// 
 	ret nz;								// 
 	ld sp, $3635;						// 
-	ld sp, $3A39;						// 
-	jp pe, $F73A;						// 
+	ld sp, $3a39;						// 
+	jp pe, $f73a;						// 
 	dec c;								// 
 	ld sp, hl;							// 
 	ret nz;								// 
 	ld sp, $3635;						// 
-	ld sp, $0D36;						// 
+	ld sp, $0d36;						// 
 
 L2264:
 	ld a, (de);							// 
@@ -5980,14 +6059,14 @@ L2264:
 L226C:
 	cp $0D;								// 
 	ret z;								// 
-	cp $01;								// 
+	cp 1;								// 
 	call z, L2279;						// 
 	call L2299;							// 
 	jr L2264;							// 
 
 L2279:
-	ld a, ($2E31);						// 
-	cp '*';								// $2A
+	ld a, ($2e31);						// 
+	cp '*';								// $2a
 	ret z;								// 
 	push af;							// 
 	and $F8;							// 
@@ -6019,15 +6098,15 @@ L2299:
 	jp z, L0251;						// 
 	cp $FC;								// 
 	jr c, L22C7;						// 
-	ld de, $225C;						// 
+	ld de, $225c;						// 
 	jr z, L22B7;						// 
 	ld de, $2250;						// 
 
 L22B7:
-	ld a, ($3D00);						// 
+	ld a, ($3d00);						// 
 	and a;								// 
 	jr nz, L22C1;						// 
-	ld a, $1C;							// 
+	ld a, $1c;							// 
 	scf;								// 
 	ret;								// 
 
@@ -6038,33 +6117,33 @@ L22C1:
 
 L22C7:
 	ld de, $2246;						// 
-	ld ($2E31), a;						// 
+	ld ($2e31), a;						// 
 	and a;								// 
 	jr z, L22D8;						// 
-	ld de, $2D4E;						// 
+	ld de, $2d4e;						// 
 	rst $30;							// 
 	inc b;								// 
-	ld de, $224A;						// 
+	ld de, $224a;						// 
 
 L22D8:
-	ld ($223B), de;						// 
+	ld ($223b), de;						// 
 	di;									// 
 	call L00EF;							// 
-	ld hl, $5B00;						// 
+	ld hl, $5b00;						// ZX printer buffer
 	ld d, h;							// 
-	ld e, $01;							// 
-	ld bc, $A4FF;						// 
+	ld e, 1;							// 
+	ld bc, $a4ff;						// 
 	ld (hl), l;							// 
 	ldir;								// 
-	ld hl, $230C;						// 
-	ld de, $5D25;						// 
-	ld bc, $002E;						// 
+	ld hl, $230c;						// 
+	ld de, $5d25;						// 
+	ld bc, $2e;							// 
 	ldir;								// 
-	ld sp, $5DA5;						// 
+	ld sp, $5da5;						// 
 	rst $18;							// 
 	defw $5d25;							// BASIC call used to call routine copied to $5d25
-	ld hl, $FFFF;						// 
-	ld a, $01;							// 
+	ld hl, $ffff;						// 
+	ld a, 1;							// 
 	ld (hl), a;							// 
 	ld a, (hl);							// 
 	dec a;								// 
@@ -6075,33 +6154,33 @@ L2309:
 	rst $18;							// 
 	defw $5da5;							// BASIC call used to call routine copied to $5da5
 	ld hl, $1200;						// 
-	ld de, $5DA5;						// 
-	ld bc, $00B1;						// 
+	ld de, $5da5;						// 
+	ld bc, $b1;							// 
 	ldir;								// 
-	ld hl, $5D47;						// 
-	ld bc, $000C;						// 
+	ld hl, $5d47;						// 
+	ld bc, $0c;							// 
 	ldir;								// 
 	ex de, hl;							// 
-	ld de, $12B4;						// 
-	ld (hl), $C3;						// 
+	ld de, $12b4;						// 
+	ld (hl), $c3;						// 
 	inc hl;								// 
 	ld (hl), e;							// 
 	inc hl;								// 
 	ld (hl), d;							// 
 	xor a;								// 
-	ld ($5DD9), a;						// 
+	ld ($5dd9), a;						// 
 	ret;								// 
 
-	ld hl, $5E62;						// 
+	ld hl, $5e62;						// 
 	push hl;							// 
-	ld hl, $223A;						// 
+	ld hl, $223a;						// 
 	push hl;							// 
 	ei;									// 
 	jp $3DFD;							// 
 
 L233A:
-	ld ($2E33), a;						// 
-	cp '.';								// $2E
+	ld ($2e33), a;						// 
+	cp '.';								// $2e
 	jp z, L23DA;						// 
 	call L2387;							// 
 	ret nc;								// 
@@ -6110,18 +6189,18 @@ L233A:
 	call L2357;							// 
 	pop hl;								// 
 	jr nc, L2351;						// 
-	ld a, $1A;							// 
+	ld a, $1a;							// 
 	rst $20;							// 
 
 L2351:
-	ld a, ($2E33);						// 
+	ld a, ($2e33);						// 
 	jp $2800;							// 
 
 L2357:
 	ld a, (L2019);						// 
 	cp l;								// 
 	jr nz, L2362;						// 
-	ld a, ($201A);						// 
+	ld a, ($201a);						// 
 	cp h;								// 
 	ret z;								// 
 
@@ -6129,7 +6208,7 @@ L2362:
 	ld (L2019), hl;						// 
 	call L02FD;							// 
 	ld a, $24;							// 
-	ld b, $01;							// 
+	ld b, 1;							// 
 	rst $08;							// 
 	defb f_open;						// 
 	jr c, L2380;						// 
@@ -6149,7 +6228,7 @@ L2362:
 L2380:
 	push af;							// 
 	xor a;								// 
-	ld ($201A), a;						// 
+	ld ($201a), a;						// 
 	pop af;								// 
 	ret;								// 
 
@@ -6195,7 +6274,7 @@ tk_overloads:
 	defb 0;								// end marker
 
 L23C4:
-	ld hl, $23B8;						// 
+	ld hl, $23b8;						// 
 	jr L2357;							// 
 
 L23C9:
@@ -6207,16 +6286,16 @@ L23C9:
 	pop de;								// 
 	pop hl;								// 
 	ld a, ixl;							// 
-	ld ($3DF8), a;						// 
-	ld a, $1A;							// 
+	ld ($3df8), a;						// 
+	ld a, $1a;							// 
 	ret;								// 
 
 L23DA:
 	inc hl;								// 
 	push hl;							// 
 	ld hl, cmd_folder;					// 
-	ld de, $2DCE;						// 
-	ld bc, $0005;						// 
+	ld de, $2dce;						// 
+	ld bc, 5;							// 
 	ldir;								// 
 	pop hl;								// 
 	ld c, $20;							// 
@@ -6237,7 +6316,7 @@ L23FB:
 	cp ' ';								// $20
 	jr nz, L2414;						// 
 	inc hl;								// 
-	ld ($2E46), hl;						// 
+	ld ($2e46), hl;						// 
 
 L2403:
 	ld a, (hl);							// 
@@ -6250,7 +6329,7 @@ L2403:
 
 L240C:
 	ld (ch_add), hl;					// 
-	ld hl, ($2E46);						// 
+	ld hl, ($2e46);						// 
 	jr L241A;							// 
 
 L2414:
@@ -6258,7 +6337,7 @@ L2414:
 	ld hl, 0;							// 
 
 L241A:
-	ld ($2E46), hl;						// 
+	ld ($2e46), hl;						// 
 
 L241B equ $241b
 
@@ -6277,18 +6356,18 @@ L242E:
 L2430:
 	call L2475;							// 
 	ld a, $24;							// 
-	ld hl, $2DCE;						// 
-	ld b, $01;							// 
+	ld hl, $2dce;						// 
+	ld b, 1;							// 
 	rst $08;							// 
 	defb f_open;						// 
 	ret;								// 
 
-	ld a, ($3DF8);						// 
-	ld ($3DF0), a;						// 
+	ld a, ($3df8);						// 
+	ld ($dfF0), a;						// 
 	push hl;							// 
 	ld hl, cmd_folder;					// 
-	ld de, $2DCE;						// 
-	ld bc, $0005;						// 
+	ld de, $2dce;						// 
+	ld bc, 5;							// 
 	ldir;								// 
 	pop hl;								// 
 
@@ -6302,14 +6381,14 @@ L2450:
 	jr L2450;							// 
 
 L245A:
-	ld ($2E46), hl;						// 
+	ld ($2e46), hl;						// 
 	call L242E;							// 
 	ret c;								// 
 	push af;							// 
 	ld a, 2
-	ld ($3DF8), a;						// 
-	ld hl, ($2E46);						// 
-	ld de, $3D00;						// 
+	ld ($3df8), a;						// 
+	ld hl, ($2e46);						// 
+	ld de, $3d00;						// 
 	push de;							// 
 	rst $30;							// 
 	inc b;								// 
@@ -6318,8 +6397,8 @@ L245A:
 	jp L0DB4;							// 
 
 L2475:
-	ld b, $0F;							// 
-	ld hl, $2E22;						// 
+	ld b, $0f;							// 
+	ld hl, $2e22;						// 
 
 L247A:
 	ld a, (hl);							// 
@@ -6347,7 +6426,7 @@ L2488:
 	or b;								// 
 	jp z, L24EF;						// 
 	ex de, hl;							// 
-	ld de, $2D4E;						// 
+	ld de, $2d4e;						// 
 	ldir;								// 
 	xor a;								// 
 	ld (de), a;							// 
@@ -6401,14 +6480,14 @@ L24C4:
 ;	// called from dirs.io
 L24CD:
 	ld sp, (err_sp);					// 
-	ld (iy + 0), $FF;					// 
-	ld hl, $1BF4;						// 
+	ld (iy + 0), $ff;					// 
+	ld hl, $1bf4;						// 
 	rst $30;							// 
 	inc bc;								// 
 	jp z, L1FFB;						// 
-	ld hl, $1B7D;						// 
+	ld hl, $1b7d;						// 
 	jp L1FFB;							// 
-	ld a, $01;							// 
+	ld a, 1;							// 
 	rst $20;							// 
 
 ;	// called from files.io
@@ -6435,10 +6514,10 @@ L24F2:
 
 ;	// called from dirs.io
 L24F5:
-	ld a, ($2E32);						// 
+	ld a, ($2e32);						// 
 	push af;							// 
 	ld a, 0;							// 
-	ld ($2E32), a;						// 
+	ld ($2e32), a;						// 
 	pop af;								// 
 	rst $08;							// 
 	defb f_close;						// 
@@ -6446,7 +6525,7 @@ L24F5:
 
 ;	// called from dirs.io
 L2502:
-	ld a, ($2E32);						// 
+	ld a, ($2e32);						// 
 	and a;								// 
 	ret z;								// 
 	push bc;							// 
@@ -6463,16 +6542,16 @@ L2502:
 
 	ld ixh, a;							// 
 	and $E0;							// 
-	cp $60;								// 'S£'
+	cp $60;								// '`'
 	scf;								// 
 	ret nz;								// 
 	ld a, ixh;							// 
 	and $F8;							// 
 	push bc;							// 
 	push af;							// 
-	ld ($3DEA), de;						// 
+	ld ($3dea), de;						// 
 	push bc;							// 
-	ld de, $2D4E;						// 
+	ld de, $2d4e;						// 
 	push de;							// 
 	rst $30;							// 
 	dec b;								// 
@@ -6489,12 +6568,12 @@ L2502:
 
 L253A:
 	ld ($2D4D), a;						// 
-	ld hl, $2DF2;						// 
+	ld hl, $2df2;						// 
 	rst $08;							// 
 	defb f_fstat;						// 
 	pop af;								// 
 	call L032E;							// 
-	ld hl, $1A95;						// 
+	ld hl, $1a95;						// 
 	ld (iy + 2), l;						// 
 	ld (iy + 3), h;						// 
 	pop bc;								// 
@@ -6511,9 +6590,9 @@ L255C:
 	or b;								// 
 	ld (iy + 1), a;						// 
 	ld a, c;							// 
-	ld hl, $2DF9;						// 
+	ld hl, $2df9;						// 
 	rst $30;							// 
-	ld bc, $F4CD;						// 
+	ld bc, $f4cd;						// 
 	dec h;								// 
 	ld l, a;							// 
 	dec l;								// 
@@ -6542,11 +6621,11 @@ L2587:
 	ld l, a;							// 
 	rst $30;							// 
 	nop;								// 
-	ld a, ($2D4D);						// 
+	ld a, ($2d4d);						// 
 	ld (iy + _newppc), a;				// 
 	ld a, ixl;							// 
-	ld ($3DF8), a;						// 
-	ld de, ($3DEA);						// 
+	ld ($3df8), a;						// 
+	ld de, ($3dea);						// 
 	ld hl, L260D;						// 
 	rst $30;							// 
 	inc b;								// 
@@ -6558,7 +6637,7 @@ L25A9:
 	ld de, $0800;						// 
 	call L25de;							// 
 	ret c;								// 
-	ld a, ($3EE7);						// 
+	ld a, ($3ee7);						// 
 	cp $10;								// 
 	ld c, 2;							// 
 	ret z;								// 
@@ -6568,10 +6647,10 @@ L25B8:
 	ret;								// 
 
 L25BA:
-	ld de, $4000;						// 
+	ld de, $4000;						// screen 0
 	call L25de;							// 
 	ret c;								// 
-	ld a, ($3E00);						// 
+	ld a, ($3e00);						// 
 	cp $FF;								// 
 	ret nz;								// 
 	ld hl, $3E09;						// 
@@ -6593,12 +6672,12 @@ L25de:
 	push bc;							// 
 	ld bc, 0;							// 
 	ld l, c;							// 
-	ld a, ($2D4D);						// 
+	ld a, ($2d4d);						// 
 	push af;							// 
 	rst $08;							// 
 	defb f_seek;						// 
 	pop af;								// 
-	ld hl, $3E00;						// 
+	ld hl, $3e00;						// 
 	ld bc, $0200;						// 
 	rst $08;							// 
 	defb f_read;						// 
@@ -6631,32 +6710,32 @@ lower_end:
 ;	// this part starts at $3000 in MMC RAM 1
 	org $3000
 L3000:
-	ld ($3C19), hl;						// 
-	ld de, ($3C11);						// 
-	ld bc, ($3C13);						// 
-	ld ($3C15), de;						// 
-	ld ($3C17), bc;						// 
+	ld ($3c19), hl;						// 
+	ld de, ($3c11);						// 
+	ld bc, ($3c13);						// 
+	ld ($3c15), de;						// 
+	ld ($3c17), bc;						// 
 	call L305E;							// 
 	ret c;								// 
 	call L1321;							// 
 	ld h, d;							// 
 	ld l, e;							// 
-	ld a, $FF;							// 
+	ld a, $ff;							// 
 	call L30E2;							// 
 	push de;							// 
-	ld de, ($3C11);						// 
-	ld bc, ($3C13);						// 
+	ld de, ($3c11);						// 
+	ld bc, ($3c13);						// 
 	call L110A;							// 
 	pop hl;								// 
 	call L1380;							// 
 	push bc;							// 
 	push de;							// 
-	ld bc, ($3C17);						// 
-	ld de, ($3C15);						// 
+	ld bc, ($3c17);						// 
+	ld de, ($3c15);						// 
 	call L10BA;							// 
-	ld de, ($3C19);						// 
+	ld de, ($3c19);						// 
 	ld a, d;							// 
-	and $01;							// 
+	and 1;								// 
 	ld d, a;							// 
 	add hl, de;							// 
 	pop de;								// 
@@ -6664,8 +6743,8 @@ L3000:
 	call L30F7;							// 
 	push bc;							// 
 	push de;							// 
-	ld bc, ($3C17);						// 
-	ld de, ($3C15);						// 
+	ld bc, ($3c17);						// 
+	ld de, ($3c15);						// 
 	call L110A;							// 
 	pop de;								// 
 	pop bc;								// 
@@ -6679,9 +6758,9 @@ L3064:
 	push hl;							// 
 	push iy;							// 
 	pop hl;								// 
-	ld l, $3E;							// 
+	ld l, $3e;							// 
 	rst $30;							// 
-	ld bc, $FDE1;						// 
+	ld bc, $fde1;						// 
 	ld a, (hl);							// 
 	inc e;								// 
 	cp 0;								// 
@@ -6720,11 +6799,11 @@ L3098:
 	call L30D3;							// 
 	ret z;								// 
 	ld a, h;							// 
-	cp '*';								// $2A
+	cp '*';								// $2a
 	jr nz, L3098;						// 
 	res 2, (iy + _oldppc);				// 
-	ld de, ($3C11);						// 
-	ld bc, ($3C13);						// 
+	ld de, ($3c11);						// 
+	ld bc, ($3c13);						// 
 	call L081C;							// 
 	push bc;							// 
 	push de;							// 
@@ -6748,7 +6827,7 @@ L30CD:
 
 L30D3:
 	ld a, (iy + _nxtlin_h);				// 
-	cp $01;								// 
+	cp 1;								// 
 	ld a, 0;							// 
 	call z, L30DD;						// 
 
@@ -6767,7 +6846,7 @@ L30E2:
 	push bc;							// 
 	ld b, a;							// 
 	ld a, (iy + _nxtlin_h);				// 
-	cp $01;								// 
+	cp 1;								// 
 	ld a, b;							// 
 	pop bc;								// 
 	ret nz;								// 
@@ -6784,7 +6863,7 @@ L30F7:
 	inc l;								// 
 	ld (hl), d;							// 
 	ld a, (iy + _nxtlin_h);				// 
-	cp $01;								// 
+	cp 1;								// 
 	ret nz;								// 
 	inc l;								// 
 	ld (hl), c;							// 
@@ -6817,8 +6896,8 @@ L3122:
 	call L30E2;							// 
 	push bc;							// 
 	push de;							// 
-	ld de, ($3C11);						// 
-	ld bc, ($3C13);						// 
+	ld de, ($3c11);						// 
+	ld bc, ($3c13);						// 
 	call L110A;							// 
 	push af;							// 
 	scf;								// 
@@ -6859,7 +6938,7 @@ L315C:
 	push ix;							// 
 	pop hl;								// 
 	ld a, l;							// 
-	add a, $0E;							// 
+	add a, $0e;							// 
 	ld l, a;							// 
 	rst $30;							// 
 	ex af, af';							// 
@@ -6877,8 +6956,8 @@ L315C:
 L3183:
 	call L19D3;							// 
 	push hl;							// 
-	ld hl, $1A6D;						// 
-	ld ($3DEE), hl;						// 
+	ld hl, $1a6d;						// 
+	ld ($3dee), hl;						// 
 	call L1A21;							// 
 	pop hl;								// 
 	ret;								// 
@@ -6895,8 +6974,8 @@ L3192:
 	call L19ED;							// 
 	call L12A6;							// 
 	push hl;							// 
-	ld hl, $1A7C;						// 
-	ld ($3DEE), hl;						// 
+	ld hl, $1a7c;						// 
+	ld ($3dee), hl;						// 
 	call L1A21;							// 
 	pop hl;								// 
 	ret;								// 
@@ -6908,7 +6987,7 @@ L3192:
 	ld d, h;							// 
 	ld e, l;							// 
 	inc de;								// 
-	ld bc, $00FF;						// 
+	ld bc, $ff;							// 
 	ld (hl), l;							// 
 	ldir;								// 
 	or a;								// 
@@ -6924,20 +7003,20 @@ L3192:
 	ret nz;								// 
 
 L31D1:
-	ld a, ($3C06);						// 
-	cp '.';								// $2E
+	ld a, ($3c06);						// 
+	cp '.';								// $2e
 	ld a, $13;							// 
 	scf;								// 
 	jp z, L329F;						// 
 	call L1773;							// 
-	ld hl, $1A65;						// 
-	ld ($3DEE), hl;						// 
+	ld hl, $1a65;						// 
+	ld ($3dee), hl;						// 
 	call L1A21;							// 
 	ld a, $17;							// 
 	ret c;								// 
 	ld l, (ix + $1C);					// 
 	ld h, (ix + $1D);					// 
-	ld a, $0B;							// 
+	ld a, $0b;							// 
 	add a, l;							// 
 	ld l, a;							// 
 	bit 0, (hl);						// 
@@ -6946,21 +7025,21 @@ L31D1:
 	jp nz, L32A4;						// 
 	push de;							// 
 	call L19FA;							// 
-	ld hl, $3C1B;						// 
+	ld hl, $3c1b;						// 
 	rst $30;							// 
 	nop;								// 
 	call L163E;							// 
-	ld hl, $3C1F;						// 
+	ld hl, $3c1f;						// 
 	rst $30;							// 
 	nop;								// 
 	call L115C;							// 
 	call L1A07;							// 
 	ld a, (ix + $06);					// 
-	ld ($3C23), a;						// 
+	ld ($3c23), a;						// 
 	ld l, (ix + $1C);					// 
 	ld h, (ix + $1D);					// 
-	ld de, $2D00;						// 
-	ld bc, $0020;						// 
+	ld de, $2d00;						// 
+	ld bc, $20;							// 
 	ldir;								// 
 	pop hl;								// 
 	ld a, $80;							// 
@@ -6974,22 +7053,22 @@ L3235:
 	cp 5
 	scf;								// 
 	jr nz, L329F;						// 
-	ld a, ($3C06);						// 
-	cp '.';								// $2E
+	ld a, ($3c06);						// 
+	cp '.';								// $2e
 	ld a, $13;							// 
 	scf;								// 
 	jr z, L329F;						// 
 	call L19FA;							// 
-	ld hl, $3C1E;						// 
+	ld hl, $3c1E;						// 
 	call L0694;							// 
 	jr nz, L3265;						// 
-	ld a, ($3C23);						// 
+	ld a, ($3c23);						// 
 	ld (ix + $06), a;					// 
 	call L16CB;							// 
 	jr c, L329F;						// 
 	ex de, hl;							// 
-	ld hl, $3C06;						// 
-	ld bc, $000B;						// 
+	ld hl, $3c06;						// 
+	ld bc, $0b;							// 
 	ldir;								// 
 	jr L329C;							// 
 
@@ -6998,11 +7077,11 @@ L3265:
 	jr c, L329F;						// 
 	ld a, (de);							// 
 	push af;							// 
-	ld hl, $3C06;						// 
-	ld bc, $000B;						// 
+	ld hl, $3c06;						// 
+	ld bc, $0b;							// 
 	ldir;								// 
-	ld hl, $2D0B;						// 
-	ld bc, $0015;						// 
+	ld hl, $2d0b;						// 
+	ld bc, $15;							// 
 	ldir;								// 
 	push de;							// 
 	call L17E7;							// 
@@ -7016,11 +7095,11 @@ L3265:
 
 L328C:
 	call L17E7;							// 
-	ld a, ($3C23);						// 
+	ld a, ($3c23);						// 
 	ld (ix + $06), a;					// 
 	call L16CB;							// 
 	jr c, L329F;						// 
-	ld (hl), $E5;						// 
+	ld (hl), $e5;						// 
 
 L329C:
 	call L17E7;							// 
@@ -7031,7 +7110,7 @@ L329F:
 	pop af;								// 
 
 L32A4:
-	ld (ix + $00), 0;					// 
+	ld (ix + 0), 0;						// 
 	ret;								// 
 
 	push bc;							// 
@@ -7055,7 +7134,7 @@ L32BC:
 	call L163E;							// 
 	ld l, (ix + $1C);					// 
 	ld h, (ix + $1D);					// 
-	ld a, $0B;							// 
+	ld a, $0b;							// 
 	add a, l;							// 
 	ld l, a;							// 
 	pop bc;								// 
@@ -7077,15 +7156,15 @@ L32BC:
 	jp L10F3;							// 
 
 L32E7:
-	ld hl, $2C00;						// 
+	ld hl, $2c00;						// 
 	ld a, (hl);							// 
-	cp '/';								// $2F
+	cp '/';								// $2f
 	jr nz, L32F0;						// 
 	inc hl;								// 
 
 L32F0:
 	ld a, (hl);							// 
-	cp '.';								// $2E
+	cp '.';								// $2e
 	jr z, L32F7;						// 
 	or a;								// 
 	ret nz;								// 
@@ -7119,8 +7198,8 @@ L3306:
 	ret c;								// 
 	push bc;							// 
 	push de;							// 
-	ld de, $2D00;						// 
-	ld hl, $33A2;						// 
+	ld de, $2d00;						// 
+	ld hl, $33a2;						// 
 	exx;								// 
 	call L19FA;							// 
 	exx;								// 
@@ -7130,7 +7209,7 @@ L3306:
 	pop de;								// 
 	pop bc;								// 
 	exx;								// 
-	ld hl, $33A1;						// 
+	ld hl, $33a1;						// 
 	call L336D;							// 
 	ld d, h;							// 
 	ld e, l;							// 
@@ -7139,21 +7218,21 @@ L3306:
 	ld (hl), a;							// 
 	ld bc, $01BF;						// 
 	ldir;								// 
-	ld hl, $2D00;						// 
+	ld hl, $2d00;						// 
 	call L313C;							// 
 	ret c;								// 
 	jp L1697;							// 
 
 L3348:
 	xor a;								// 
-	ld ($3C01), a;						// 
+	ld ($3c01), a;						// 
 	call L1712;							// 
-	ld (ix + $00), 0;					// 
+	ld (ix + 0), 0;						// 
 	ret c;								// 
 	ld hl, $2600;						// 
 	call L17FD;							// 
 	ret c;								// 
-	ld a, $0B;							// 
+	ld a, $0b;							// 
 	add a, e;							// 
 	ld e, a;							// 
 	ld a, $10;							// 
@@ -7164,7 +7243,7 @@ L3348:
 	jp L3192;							// 
 
 L336D:
-	ld bc, $000B;						// 
+	ld bc, $0b;							// 
 	ldir;								// 
 	ld a, $10;							// 
 	ld (de), a;							// 
@@ -7213,7 +7292,7 @@ L336D:
 	nop;								// 
 	ret;								// 
 
-	ld l, $2E;							// 
+	ld l, $2e;							// 
 	jr nz, L33C5;						// 
 	jr nz, L33C7;						// 
 	jr nz, L33C9;						// 
@@ -7224,8 +7303,8 @@ L336D:
 	ret c;								// 
 	call L163E;							// 
 	call L107B;							// 
-	ld hl, $2C80;						// 
-	ld a, ($3DEA);						// 
+	ld hl, $2c80;						// 
+	ld a, ($3dea);						// 
 	ld (iy + $7f), a;					// 
 	push iy;							// 
 	pop de;								// 
@@ -7251,7 +7330,7 @@ L33CD equ $33cd
 	ret;								// 
 
 L33D2:
-	ld a, $01;							// 
+	ld a, 1;							// 
 	or b;								// 
 	and $41;							// 
 	ld (ix + $01), a;					// 
@@ -7278,8 +7357,8 @@ L3402:
 	ex de, hl;							// 
 
 L3403:
-	ld hl, $2D00;						// 
-	ld bc, $0020;						// 
+	ld hl, $2d00;						// 
+	ld bc, $20;							// 
 	push de;							// 
 	call L1681;							// 
 	pop de;								// 
@@ -7287,14 +7366,14 @@ L3403:
 	ld a, (hl);							// 
 	and a;								// 
 	ret z;								// 
-	cp $E5;								// RESTORE
+	cp $e5;								// RESTORE
 	jr z, L3403;						// 
-	ld l, $0B;							// 
+	ld l, $0b;							// 
 	bit 3, (hl);						// 
 	ld l, 0;							// 
 	jr nz, L3403;						// 
 	push de;							// 
-	ld de, $2D20;						// 
+	ld de, $2d20;						// 
 	push de;							// 
 	inc de;								// 
 	ld b, 8;							// 
@@ -7302,7 +7381,7 @@ L3403:
 	ld a, (hl);							// 
 	cp ' ';								// $20
 	jr z, L3432;						// 
-	ld a, $2E;							// 
+	ld a, $2e;							// 
 	ld (de), a;							// 
 	inc de;								// 
 
@@ -7314,13 +7393,13 @@ L3432:
 	inc de;								// 
 	ld a, (hl);							// 
 	and $3F;							// 
-	ld ($2D20), a;						// 
-	ld bc, $0009;						// 
+	ld ($2d20), a;						// 
+	ld bc, 9;							// 
 	add hl, bc;							// 
 	ld c, (hl);							// 
 	inc hl;								// 
 	ld b, (hl);							// 
-	ld ($3C21), bc;						// 
+	ld ($3c21), bc;						// 
 	inc hl;								// 
 	ldi;								// 
 	ldi;								// 
@@ -7329,7 +7408,7 @@ L3432:
 	ld c, (hl);							// 
 	inc hl;								// 
 	ld b, (hl);							// 
-	ld ($3C1F), bc;						// 
+	ld ($3c1f), bc;						// 
 	inc hl;								// 
 	ldi;								// 
 	ldi;								// 
@@ -7345,8 +7424,8 @@ L3432:
 	pop de;								// 
 	ret c;								// 
 	rst $30;							// 
-	ld b, $EB;							// 
-	ld a, $01;							// 
+	ld b, $eb;							// 
+	ld a, 1;							// 
 	or a;								// 
 	ret;								// 
 
@@ -7357,7 +7436,7 @@ L347B:
 	ld hl, $3C1F;						// 
 	push de;							// 
 	rst $30;							// 
-	ld bc, $0DF7;						// 
+	ld bc, $0df7;						// 
 	jr z, L3497;						// 
 	call L1265;							// 
 	ld hl, $2600;						// 
@@ -7372,12 +7451,12 @@ L3497:
 	call L18B3;							// 
 	pop de;								// 
 	jr nz, L34B1;						// 
-	ld hl, $2D20;						// 
+	ld hl, $2d20;						// 
 	ld a, $40;							// 
 	or (hl);							// 
 	ld (hl), a;							// 
-	ld hl, $260F;						// 
-	ld bc, $0008;						// 
+	ld hl, $260f;						// 
+	ld bc, 8;							// 
 
 L34AD:
 	ldir;								// 
@@ -7385,7 +7464,7 @@ L34AD:
 	ret;								// 
 
 L34B1:
-	ld a, $FF;							// 
+	ld a, $ff;							// 
 	ld (de), a;							// 
 	inc de;								// 
 	inc a;								// 
@@ -7393,7 +7472,7 @@ L34B1:
 	push de;							// 
 	pop hl;								// 
 	inc de;								// 
-	ld bc, $0005;						// 
+	ld bc, 5;							// 
 	jr L34AD;							// 
 
 L34BF:
@@ -7408,13 +7487,13 @@ L34C7:
 	djnz L34BF;							// 
 	ret;								// 
 
-	ld de, $2D00;						// 
-	ld hl, $0040;						// 
-	ld bc, $000B;						// 
+	ld de, $2d00;						// 
+	ld hl, $40;							// 
+	ld bc, $0b;							// 
 	ldir;								// 
-	ld hl, ($3C23);						// 
-	ld e, $0F;							// 
-	ld bc, $0008;						// 
+	ld hl, ($3c23);						// 
+	ld e, $0f;							// 
+	ld bc, 8;							// 
 	rst $30;							// 
 	rlca;								// 
 	xor a;								// 
@@ -7422,7 +7501,7 @@ L34C7:
 	ld h, d;							// 
 	ld l, e;							// 
 	inc e;								// 
-	ld bc, $0067;						// 
+	ld bc, $67;							// 
 	ldir;								// 
 	push de;							// 
 	ld l, $10;							// 
@@ -7432,15 +7511,15 @@ L34C7:
 	ld b, a;							// 
 	ld c, a;							// 
 	push hl;							// 
-	ld hl, $0080;						// 
+	ld hl, $80;							// 
 	call L0831;							// 
 	pop hl;								// 
-	ld l, $0B;							// 
+	ld l, $0b;							// 
 	rst $30;							// 
 	nop;								// 
 	pop hl;								// 
 	ld l, 0;							// 
-	ld c, $7F;							// 
+	ld c, $7f;							// 
 	xor a;								// 
 
 L3503:
@@ -7497,10 +7576,10 @@ L353C:
 	call L33D2;							// 
 	pop hl;								// 
 	ret c;								// 
-	ld a, ($3DF8);						// 
+	ld a, ($3df8);						// 
 	ld c, a;							// 
-	ld a, ($3DF9);						// 
-	ld ($3DF8), a;						// 
+	ld a, ($3df9);						// 
+	ld ($3df8), a;						// 
 	push hl;							// 
 	push bc;							// 
 	call L3570;							// 
@@ -7508,7 +7587,7 @@ L353C:
 	pop hl;								// 
 	push af;							// 
 	ld a, c;							// 
-	ld ($3DF8), a;						// 
+	ld ($3df8), a;						// 
 	pop af;								// 
 	ret c;								// 
 	ld a, $80;							// 
@@ -7518,7 +7597,7 @@ L3570:
 	ld b, 0;							// 
 
 L3572:
-	ld hl, $2D40;						// 
+	ld hl, $2d40;						// 
 	push bc;							// 
 	push hl;							// 
 	call L3402;							// 
@@ -7530,7 +7609,7 @@ L3572:
 	inc b;								// 
 	inc hl;								// 
 	ld a, (hl);							// 
-	cp '.';								// $2E
+	cp '.';								// $2e
 	jr z, L3572;						// 
 
 L3587:
@@ -7542,8 +7621,8 @@ L358B:
 	ld a, b;							// 
 	cp 2;								// 
 	jr nz, L3587;						// 
-	ld a, ($3C06);						// 
-	cp '.';								// $2E
+	ld a, ($3c06);						// 
+	cp '.';								// $2e
 	jr nz, L359B;						// 
 	ld a, 8;							// 
 	scf;								// 
@@ -7562,15 +7641,15 @@ L359F:
 	call L115C;							// 
 	call L1A07;							// 
 	call L163E;							// 
-	ld hl, $1A65;						// 
-	ld ($3DEE), hl;						// 
+	ld hl, $1a65;						// 
+	ld ($3dee), hl;						// 
 	call L1A21;							// 
 	ld a, $17;							// 
 	jr c, L35DE;						// 
 	ld l, (ix + $1C);					// 
 	ld h, (ix + $1D);					// 
 	push hl;							// 
-	ld a, $0B;							// 
+	ld a, $0b;							// 
 	add a, l;							// 
 	ld l, a;							// 
 	bit 0, (hl);						// 
@@ -7578,7 +7657,7 @@ L359F:
 	ld a, $18;							// 
 	scf;								// 
 	jr nz, L35DE;						// 
-	ld (hl), $E5;						// 
+	ld (hl), $e5;						// 
 	push bc;							// 
 	push de;							// 
 	call L17E7;							// 
@@ -7588,10 +7667,10 @@ L359F:
 	call nc, L10F3;						// 
 
 L35DE:
-	ld (ix + $00), 0;					// 
+	ld (ix + 0), 0;						// 
 	ret;								// 
 
-	ld b, $01;							// 
+	ld b, 1;							// 
 	push hl;							// 
 	push de;							// 
 	call L16DE;							// 
@@ -7614,7 +7693,7 @@ L35FA:
 
 L35FF:
 	push hl;							// 
-	ld hl, $2D00;						// 
+	ld hl, $2d00;						// 
 	ld a, (iy + 0);						// 
 	ld (hl), a;							// 
 	inc hl;								// 
@@ -7625,8 +7704,8 @@ L35FF:
 	ret c;								// 
 	push de;							// 
 	ex de, hl;							// 
-	ld hl, $2D02;						// 
-	ld a, $0B;							// 
+	ld hl, $2d02;						// 
+	ld a, $0b;							// 
 	ld c, a;							// 
 	add a, e;							// 
 	ld e, a;							// 
@@ -7637,17 +7716,17 @@ L35FF:
 	add a, e;							// 
 	ld e, a;							// 
 	ex de, hl;							// 
-	ld bc, $0004;						// 
+	ld bc, 4;							// 
 	ldir;								// 
 	ex de, hl;							// 
 	call L19E0;							// 
 	rst $30;							// 
 	nop;								// 
 	pop de;								// 
-	ld hl, $2D00;						// 
-	ld bc, $000B;						// 
+	ld hl, $2d00;						// 
+	ld bc, $0b;							// 
 	rst $30;							// 
-	ld b, $B7;							// 
+	ld b, $b7;							// 
 	jp L16BE;							// 
 	ld a, 0;							// 
 	call L1524;							// 
@@ -7657,7 +7736,7 @@ L35FF:
 	call L1A07;							// 
 	ld l, (ix + $1C);					// 
 	ld h, (ix + $1D);					// 
-	ld a, $0B;							// 
+	ld a, $0b;							// 
 	add a, l;							// 
 	ld l, a;							// 
 	bit 0, (hl);						// 
@@ -7689,8 +7768,8 @@ L3668:
 L367F:
 	call L3108;							//
 	call nc, L10F3;						//
-	ld hl, $1A7C;						//
-	ld ($3DEE), hl;						//
+	ld hl, $1a7c;						//
+	ld ($3dee), hl;						//
 	call L1A21;							//
 	or a;								//
 	ret;								//
@@ -7770,7 +7849,7 @@ L36E7:
 	ld c, e;							//
 
 L36F0:
-	ld a, $0E;							//
+	ld a, $0e;							//
 	call L37C4;							//
 	rst $30;							//
 	ex af, af';							//
@@ -7915,7 +7994,7 @@ L37B0:
 	jp L0824;							//
 
 L37BC:
-	ld a, $1C;							//
+	ld a, $1c;							//
 	call L37C4;							//
 	rst $30;							//
 	nop;								//
