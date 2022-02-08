@@ -14,14 +14,16 @@
 ;	// You should have received a copy of the GNU General Public License
 ;	// along with UnoDOS 3. If not, see <http://www.gnu.org/licenses/>.
 
-; 	// This source is compatible with Zeus
-;	// (http://www.desdes.com/products/oldfiles)
+;	// Zeus directives (http://www.desdes.com/products/oldfiles)
+;	zoWarnFlow = false;					// prevent pseudo op-codes triggering warnings.
+;	output_bin "../bin/unodos.rom",0,$2000
+;	output_bin "../bin/unodos0.sys",$2000,lower_end-$2000
+;	output_bin "../bin/unodos1.sys",$3000,upper_end-$3000
 
-	zoWarnFlow = false;					// prevent pseudo op-codes triggering warnings.
-
-	output_bin "../bin/unodos.rom",0,$2000
-	output_bin "../bin/unodos0.sys",$2000,lower_end-$2000
-	output_bin "../bin/unodos1.sys",$3000,upper_end-$3000
+;	// RASM directives
+	save "../bin/unodos.rom",0,$2000
+	save "../bin/unodos0.sys",$2000,lower_end-$2000
+	save "../bin/unodos1.sys",$3000,upper_end-$3000
 
 	include "os.inc"
 	include "io.inc"
@@ -1453,7 +1455,8 @@ L07FE:
 	ret;								// 
 	add a, b;							// 
 
-	dbtb "No system";					//
+;	dbtb "No system";					// Zeus - string with terminal bit 7 set
+	str "No system";					// RASM - string with terminal bit 7 set
 
 L081C:
 	inc e;								// 
@@ -2341,9 +2344,11 @@ pr_msg:
 	inc hl;								// 
 	jr pr_msg;							// 
 
-	dbtb "UnoDOS error #";				//
+;	dbtb "UnoDOS error #";				// Zeus - string with terminal bit 7 set
+	str "UnoDOS error #";				// RASM - string with terminal bit 7 set
 
-	dbtb "Too many open files";			//
+;	dbtb "Too many open files";			// Zeus - string with terminal bit 7 set
+	str "Too many open files";			// RASM - string with terminal bit 7 set
 
 ;	// jumped from RST $18 (CALLBAS)
 L0CBD:

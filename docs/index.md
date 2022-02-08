@@ -16,7 +16,7 @@ You should have received a copy of the GNU General Public License
 along with UnoDOS 3. If not, see <http://www.gnu.org/licenses/>.
 
 ## Install (Chloe 280SE)
-Updates to the UnoDOS III kernel are included in the firmware update binary.
+Updates to the UnoDOS 3 kernel are included in the firmware update binary.
 Place the binary on the root of your SD card and power cycle your computer.
 
 ## Clean install (divMMC)
@@ -69,4 +69,4 @@ distribution:
 * `CONFIG/TRDOS.CFG`: config file
 * `VDISK`: mount command
 
-Copyright © 2017-2020 Source Solutions, Inc.
+Copyright © 2017-2022 Source Solutions, Inc.
