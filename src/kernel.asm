@@ -246,9 +246,8 @@ L0124:
 	ld de, $5efe;						// destination
 	ld (hl), a;							// set first value to zero
 	lddr;								// zero 16384 to 24319 (blank screen)
-	call logo;							// print the logo
-
 	call boot_chime;					// play chime
+	call logo;							// print the logo
 
 ; Check this divMMC device has more than 32K (4 pages) of memory
 	ld a, 4;							// Start at page 4
@@ -2917,7 +2916,7 @@ L102E:
 	jr nz, L103A;						// 
 
 L1037:
-	ld hl, $105c;						// 
+	ld hl, L105C;						// 
 
 L103A:
 	call L103E;							// 
@@ -2952,15 +2951,8 @@ L104B:
 	ld (de), a;							// 
 	ret;								// 
 
-	ld d, l;							// 
-	ld c, (hl);							// 
-	ld c, (hl);							// 
-	ld b, c;							// 
-	ld c, l;							// 
-	ld b, l;							// 
-	ld b, h;							// 
-	jr nz, L1085;						// 
-
+L105C:
+	defb "NO NAME  ";					// if disk has no label
 L1065:
 	call L1169;							// 
 	call L107B;							// 
@@ -5809,7 +5801,7 @@ L20DF:
 	halt;								// 
 	di;									// 
 	ld a, ($2e67);						// 
-	ld bc, $7ffd;						// 128 RAM paging port
+	ld bc, $7ffd;						// 128 paging
 	out (c), a;							// 
 	ld hl, $2e69;						// 
 	call L2177;							// 
@@ -5887,11 +5879,11 @@ L215E:
 	ld de, restart_10;					// 
 
 L2164:
-	ld bc, $fffd;						// AY port
+	ld bc, $fffd;						// AY register port
 	out (c), d;							// 
 	in a, (c);							// 
 	ld (hl), a;							// 
-	ld b, $bf;							// 
+	ld b, $bf;							// AY data port
 	xor a;								// 
 	out (c), a;							// 
 	inc hl;								// 
@@ -5904,9 +5896,9 @@ L2177:
 	ld de, restart_10;					// 
 
 L217A:
-	ld bc, $fffd;						// AY port
+	ld bc, $fffd;						// AY register port
 	out (c), d;							// 
-	ld b, $bf;							// 
+	ld b, $bf;							// AY data port
 	ld a, (hl);							// 
 	out (c), a;							// 
 	inc hl;								// 
@@ -5935,7 +5927,7 @@ L218A:
 L21A6:
 	push af;							// 
 	exx;								// 
-	ld bc, $7ffd;						// 128 RAM port 
+	ld bc, $7ffd;						// 128 paging
 	out (c), a;							// 
 	exx;								// 
 	ld de, $c000;						// 
