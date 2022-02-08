@@ -6363,7 +6363,7 @@ L2430:
 	ret;								// 
 
 	ld a, ($3df8);						// 
-	ld ($dfF0), a;						// 
+	ld ($3df0), a;						// 
 	push hl;							// 
 	ld hl, cmd_folder;					// 
 	ld de, $2dce;						// 
@@ -6542,7 +6542,7 @@ L2502:
 
 	ld ixh, a;							// 
 	and $E0;							// 
-	cp $60;								// '`'
+	cp $60;								// '£'
 	scf;								// 
 	ret nz;								// 
 	ld a, ixh;							// 
@@ -6653,7 +6653,7 @@ L25BA:
 	ld a, ($3e00);						// 
 	cp $FF;								// 
 	ret nz;								// 
-	ld hl, $3E09;						// 
+	ld hl, $3e09;						// 
 	ld a, (hl);							// 
 	cp $44;								// 'D'
 	jr nz, L25B8;						// 
