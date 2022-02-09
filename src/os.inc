@@ -18,9 +18,6 @@
 ;	// (http://www.desdes.com/products/oldfiles)
 
 
-;	// VERSION
-	version equ "UnoDOS 3.12 (Wolf)       "
-
 ;	// divIDE / divMMC trap addresses
 ;	//
 ;	// $0000			: initialization

@@ -4851,8 +4851,8 @@ L1B2B:
 
 	org $1b37
 copyright:
-	defb version, $0d, $0d, $7f;		// 
-	defb " 2022 Source Solutions, Inc.", $0d, 0
+	defb "UnoDOS 3.12 (Wolf)       ", $0d, $0d;
+	defb $7f, " 2022 Source Solutions, Inc.", $0d, 0
 
 ;	org $1b59
 logo:
