@@ -24,8 +24,8 @@
 ;	// $0008			: hook codes
 ;	// $0038			: maskable interrupt
 ;	// $0066			: non-maskable interrupt
-;	// $04C6			: LOAD routine
-;	// $0562			: SAVE routine
+;	// $04C6			: SAVE routine
+;	// $0562			: LOAD routine
 ;	// $1FF8 - $1FFF	: map off area
 ;	// $3D00 - $3FFF	: TR-DOS traps
 
