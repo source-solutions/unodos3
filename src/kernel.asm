@@ -4608,16 +4608,18 @@ L18D0:
 L18EE:
 	res 2, (ix + 1);					// clear file modification bit
 
+; // file I/O byte count preservation
 L18F2:
-	push bc;							// 
+	push bc;							// save byte count for loop processing
 
+; // file position load and validation loop
 L18F3:
-	ld e, (ix + 15);					// 
-	ld a, (ix + 16);					// 
-	and %00000001;						// 
-	ld d, a;							// 
-	call L1934;							// 
-	jr c, L1929;						// 
+	ld e, (ix + 15);					// load file position low byte
+	ld a, (ix + 16);					// load file position byte 1
+	and %00000001;						// mask to get sector offset bit
+	ld d, a;							// store masked offset in D
+	call L1934;							// call position validation function
+	jr c, L1929;						// jump to error cleanup if validation failed
 	push bc;							// save byte count
 	push hl;							// save buffer pointer
 	ld hl, $0200;						// load sector size (512 bytes)
