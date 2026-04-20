@@ -7559,15 +7559,15 @@ L3403:
 	pop de;								// restore DE register
 	ret c;								// return if read failed
 	ld a, (hl);							// load first byte of entry
-	and a;								// 
-	ret z;								// 
-	cp $e5;								// RESTORE
-	jr z, L3403;						// 
-	ld l, $0b;							// 
-	bit 3, (hl);						// 
-	ld l, 0;							// 
-	jr nz, L3403;						// 
-	push de;							// 
+	and a;								// check if entry is empty (first byte = 0)
+	ret z;								// return if empty entry found
+	cp $e5;								// check for deleted entry marker
+	jr z, L3403;						// jump to continue if deleted entry
+	ld l, $0b;							// load offset to attributes field
+	bit 3, (hl);						// check volume label bit (bit 3)
+	ld l, 0;							// reset L to start of entry
+	jr nz, L3403;						// jump to continue if volume label
+	push de;							// save directory entry position
 	ld de, $2d20;						// load filename output buffer address
 	push de;							// save output buffer pointer
 	inc de;								// increment destination pointer
