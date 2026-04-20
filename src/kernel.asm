@@ -2993,7 +2993,7 @@ process_directory_entry:
 process_volume_label:
 	ld hl, $1416;						// load address $1416
 	ld a, 8;							// set A to 8
-	call L1470;							// call subroutine at L1470
+	call process_filesystem_operation;	// call subroutine at L1470
 	jr nc, setup_label_copy;			// jump if no carry (success)
 	ld hl, $2d2b;						// load address $2D2B
 
@@ -3761,32 +3761,33 @@ validate_fat_char:
 	ld l, $2a;							// data bytes $2e $2a
 
 ; Function: Compare directory entries
-L1417:
+compare_directory_entries:
 	push de;							// save DE register
 	push hl;							// save HL register
 	push bc;							// save BC register
 	ld b, $0b;							// set comparison length (11 chars for 8.3 filename)
 
 ; Function: Character-by-character filename comparison loop
-L141C:
+filename_compare_loop:
 	ld a, (de);							// load character from search pattern
 	cp '*';								// check for wildcard character
-	jr z, L1428;						// jump if wildcard (auto-match)
+	jr z, restore_after_comparison;		// jump if wildcard (auto-match)
 	cp (hl);							// compare with directory entry character
-	jr nz, L1428;						// jump if no match
+	jr nz, restore_after_comparison;	// jump if no match
 	inc de;								// advance search pattern pointer
 	inc hl;								// advance directory entry pointer
-	djnz L141C;							// continue for all 11 characters
+	djnz filename_compare_loop;			// continue for all 11 characters
 
 ; Function: Restore registers after comparison
-L1428:
+restore_after_comparison:
 	pop bc;								// restore BC register
 	pop hl;								// restore HL register
 	pop de;								// restore DE register
 	ret;								// return with comparison result
 
 ; Function: Process file operation with error checking
-L142C:
+; Function: Process file operation with error checking
+process_file_operation:
 	ld b, a;							// save operation code
 	push bc;							// save BC register
 	push hl;							// save HL register
@@ -3796,16 +3797,17 @@ L142C:
 	pop hl;								// restore HL register
 	pop bc;								// restore BC register
 	ld a, b;							// reload operation code
-	jr z, L143F;						// jump if zero result
+	jr z, return_device_error;			// jump if zero result
 	or a;								// test operation code
 	ret;								// return with result
 
 ; Function: Return specific error code
-L143F:
+return_device_error:
 	ld a, $13;							// load error code 19 (device error)
 	ret;								// return with error
 
-L1442:
+; Function: Check file attributes and extensions
+check_file_attributes:
 	ld b, a;							// save operation type
 	push bc;							// save BC register
 	push hl;							// save HL register
@@ -3814,25 +3816,25 @@ L1442:
 	pop hl;								// transfer IY to HL
 	ld l, $29;							// set offset for file attribute
 	call compare_32bit;					// call comparison function
-	jr nz, L145D;						// jump if not zero
+	jr nz, cleanup_and_return;			// jump if not zero
 	pop hl;								// restore HL register
 	push hl;							// save HL again
 	ld a, (hl);							// load first character
 	cp '.';								// check for period
-	jr nz, L145D;						// jump if not extension
+	jr nz, cleanup_and_return;			// jump if not extension
 	inc l;								// advance pointer
 	ld a, (hl);							// load next character
 	cp ' ';								// check for space
 
 ; Function: Cleanup and return operation code
-L145D:
+cleanup_and_return:
 	pop hl;								// restore HL register
 	pop bc;								// restore BC register
 	ld a, b;							// load operation code
 	ret;								// return with operation result
 
 ; Function: Initialize buffer and call system routines
-L1461:
+init_buffer_system_call:
 	ld de, $2f00;						// load buffer address
 	push de;							// save buffer address
 	exx;								// switch to alternate registers
@@ -3844,7 +3846,7 @@ L1461:
 	ret;								// return with status
 
 ; Function: Process filesystem operation with parameter handling
-L1470:
+process_filesystem_operation:
 	push af;							// save accumulator
 	call get_filesystem_parameters;		// get filesystem parameters
 	call L19ED;							// call processing function
@@ -3852,17 +3854,18 @@ L1470:
 	pop af;								// restore accumulator
 
 ; Function: File operation validation and processing
-L147B:
-	call L1442;							// call file operation processing
-	jr z, L1461;						// jump if zero result
-	call L142C;							// call error checking function
+validate_file_operation:
+	call check_file_attributes;			// call file operation processing
+	jr z, init_buffer_system_call;		// jump if zero result
+	call process_file_operation;		// call error checking function
 	ret c;								// return if error
 	res 2, (ix + 1);					// clear file status bit
 	ld (iy + 51), a;					// store accumulator in volume descriptor
 	res 1, (iy + 52);					// clear volume status bit
 	ld ($3c04), hl;						// store HL in system variable
 
-L1492:
+; Function: Set error and prepare buffer operations
+set_error_prepare_buffer:
 	ld a, $11;							// load error code 17
 	ld (ix + 6), a;						// store error code in file descriptor
 	ld hl, $2600;						// load buffer address
@@ -3876,44 +3879,44 @@ L14A0:
 	dec (ix + 6);						// decrement entry counter
 	jr nz, L14AA;						// jump if more entries to process
 	call process_sector_decrement;		// call sector advance function
-	jr L1492;							// jump to reload buffer
+	jr set_error_prepare_buffer;		// jump to reload buffer
 
 ; // process current directory entry
 L14AA:
-	ld a, (hl);							// load first character of entry
-	and a;								// check if entry is empty (end of directory)
-	jr z, L1505;						// jump if end of directory
-	cp 229;								// check for deleted entry marker ($e5)
+	ld a, (hl);								// load first character of entry
+	and a;									// check if entry is empty (end of directory)
+	jr z, L1505;					// jump if end of directory
+	cp 229;									// check for deleted entry marker ($e5)
 	jr z, L14C3;						// jump if deleted entry
-	ld c, l;							// save current entry pointer in C
-	ld a, l;							// load entry pointer
-	add a, 11;							// add 11 to point to attributes byte
-	ld l, a;							// update pointer to attributes
-	ld a, (hl);							// load file attributes
-	ld l, c;							// restore entry pointer
-	cp 15;								// check for long filename entry ($0f)
-	jr nz, L14EA;						// jump if not long filename entry
+	ld c, l;								// save current entry pointer in C
+	ld a, l;								// load entry pointer
+	add a, 11;								// add 11 to point to attributes byte
+	ld l, a;								// update pointer to attributes
+	ld a, (hl);								// load file attributes
+	ld l, c;								// restore entry pointer
+	cp 15;									// check for long filename entry ($0f)
+	jr nz, L14EA;					// jump if not long filename entry
 
 ; // skip long filename entries
 L14BD:
-	ld bc, $20;							// load directory entry size (32 bytes)
-	add hl, bc;							// advance to next directory entry
-	jr L14A0;							// jump back to process next entry
+	ld bc, $20;								// load directory entry size (32 bytes)
+	add hl, bc;								// advance to next directory entry
+	jr L14A0;						// jump back to process next entry
 
 ; // handle deleted directory entry
 L14C3:
-	call L14C8;							// call deleted entry handler
-	jr L14BD;							// jump to skip entry
+	call L14C8;						// call deleted entry handler
+	jr L14BD;						// jump to skip entry
 
 ; // process deleted entry for reuse tracking
 L14C8:
-	bit 1, (iy + 52);					// check if already tracking deleted entry
-	ret nz;								// return if already tracking
-	set 1, (iy + 52);					// set deleted entry tracking flag
-	ld a, (ix + 6);						// load current entry number
-	ld (ix + 30), a;					// store as deleted entry number
-	ld a, (ix + 19);					// load current sector high
-	ld (ix + 31), a;					// store as deleted entry sector
+	bit 1, (iy + 52);						// check if already tracking deleted entry
+	ret nz;									// return if already tracking
+	set 1, (iy + 52);						// set deleted entry tracking flag
+	ld a, (ix + 6);							// load current entry number
+	ld (ix + 30), a;						// store as deleted entry number
+	ld a, (ix + 19);						// load current sector high
+	ld (ix + 31), a;						// store as deleted entry sector
 	call get_file_next_cluster;			// call file descriptor function
 	call L19D3;							// call position storage function
 	call get_file_sector_address;		// call sector calculation function
@@ -3922,22 +3925,22 @@ L14C8:
 
 ; // check file attributes and compare filenames
 L14EA:
-	ld e, a;							// store file attributes in E
-	ld a, (iy + 51);					// load file attribute filter
-	and a;								// check if filter is set
-	jr z, L14F4;						// jump if no filter
+	ld e, a;								// store file attributes in E
+	ld a, (iy + 51);						// load file attribute filter
+	and a;									// check if filter is set
+	jr z, L14F4;					// jump if no filter
 	and e;								// apply filter to file attributes
-	jr z, L14BD;						// skip entry if doesn't match filter
+	jr z, L14BD;					// skip entry if doesn't match filter
 
 ; // compare entry with search filename
 L14F4:
-	ld de, ($3c04);						// load search filename pointer
-	call L1417;							// call filename comparison function
-	jr nz, L14BD;						// skip if no match
-	ld (ix + 28), l;					// store matched entry low address
-	ld (ix + 29), h;					// store matched entry high address
-	or a;								// clear carry flag (success)
-	ret;								// return with match found
+	ld de, ($3c04);							// load search filename pointer
+	call compare_directory_entries;						// call filename comparison function
+	jr nz, L14BD;					// skip if no match
+	ld (ix + 28), l;				// store matched entry low address
+	ld (ix + 29), h;				// store matched entry high address
+	or a;							// clear carry flag (success)
+	ret;									// return with match found
 
 ; // handle end of directory (file not found)
 L1505:
@@ -4029,7 +4032,7 @@ L1578:
 	push hl;							// save path pointer
 	ex de, hl;							// exchange DE/HL (filename buffer to HL)
 	xor a;								// clear A register
-	call L147B;							// call directory entry search function
+	call validate_file_operation;		// call directory entry search function
 	pop de;								// restore path pointer
 	jp c, L162E;						// jump if search failed
 	ld c, l;							// save entry pointer low in C
