@@ -1209,315 +1209,342 @@ msg_betadisk:
 ;	org $06bb
 msg_failed:
 	defb $17, $0c, $01;					// TAB 24
-	defm ": failed";					// 
+	defm ": failed";					// failure message text
 	defb $0d, 0;						// carriage return, null terminator
 
 ;	org $06c8
 msg_ok:
 	defb $17, $0c, $01;					// TAB 27
-	defm ": ok";						// 
+	defm ": ok";						// success message text
 	defb $0d, 0;						// carriage return, null terminator
 
 ;	org $06d1
 msg_nmi:
 	defm "nmi", 0;						// null ternimated message
 
+;	// disk mounting and initialization routine
 	org $06e1
 L06E1:
-	ld hl, $2df2;						// 
-	push hl;							// 
-	rst $08;							// 
-	defb disk_info;						// 
-	pop hl;								// 
+	ld hl, $2df2;						// load pointer to disk information table
+	push hl;							// save disk info pointer on stack
+	rst $08;							// call system function
+	defb disk_info;						// get disk information
+	pop hl;								// restore disk info pointer
 
+;	// mount all available filesystems loop
 L06E8:
-	ld a, (hl);							// 
-	and a;								// 
-	ret z;								// 
-	push hl;							// 
-	ld bc, 0;							// 
-	rst $08;							// 
-	defb f_mount;						// 
-	pop hl;								// 
-	ld de, 6;							// 
-	add hl, de;							// 
-	jr L06E8;							// 
-	call L0714;							// 
-	scf;								// 
-	ret z;								// 
-	ld l, a;							// 
-	push hl;							// 
-	call L0B19;							// 
-	pop hl;								// 
-	ret c;								// 
-	ld a, l;							// 
-	call L07C3;							// 
-	ret c;								// 
-	xor a;								// 
-	push iy;							// 
-	pop hl;								// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld (hl), a;							// 
-	or a;								// 
-	ret;								// 
+	ld a, (hl);							// load filesystem identifier
+	and a;								// check if zero (end of list)
+	ret z;								// return if no more filesystems to mount
+	push hl;							// save filesystem table pointer
+	ld bc, 0;							// set mount parameters to zero
+	rst $08;							// call system function
+	defb f_mount;						// mount filesystem
+	pop hl;								// restore filesystem table pointer
+	ld de, 6;							// each filesystem entry is 6 bytes
+	add hl, de;							// point to next filesystem entry
+	jr L06E8;							// continue with next filesystem
+	call L0714;							// search for filesystem type in supported list
+	scf;								// set carry flag to indicate error
+	ret z;								// return if zero flag set
+	ld l, a;							// store drive number in L register
+	push hl;							// save drive number on stack
+	call L0B19;							// call drive initialization routine
+	pop hl;								// restore drive number from stack
+	ret c;								// return if carry set (error)
+	ld a, l;							// get drive number back
+	call L07C3;							// call drive configuration routine
+	ret c;								// return if carry set (error)
+	xor a;								// clear accumulator (A = 0)
+	push iy;							// save IY register on stack
+	pop hl;								// get IY value into HL
+	ld (hl), a;							// clear first byte at IY address
+	inc hl;								// advance to next byte
+	ld (hl), a;							// clear second byte
+	inc hl;								// advance to third byte
+	ld (hl), a;							// clear third byte
+	or a;								// clear carry flag (success)
+	ret;								// return to caller
 
+;	// search for filesystem type in supported list
 L0714:
-	push bc;							// 
-	ld hl, $2cf0;						// 
-	ld bc, $0f;							// 
-	cpir;								// 
-	pop bc;								// 
-	ret nz;								// 
-	ld a, $1d;							// 
-	ret;								// 
+	push bc;							// save BC register on stack
+	ld hl, $2cf0;						// point to supported filesystem types table
+	ld bc, $0f;							// set search length (15 bytes)
+	cpir;								// compare and increment until match or end
+	pop bc;								// restore BC register from stack
+	ret nz;								// return if not found (NZ flag set)
+	ld a, $1d;							// load error code $1d (unsupported filesystem)
+	ret;								// return with error code
 
+;	// check if drive is already mounted
 L0722:
-	ld hl, $2d00;						// 
-	ld b, $0c;							// 
+	ld hl, $2d00;						// point to mounted drives table
+	ld b, $0c;							// check up to 12 drive slots
 
+;	// search loop through mounted drives
 L0727:
-	cp (hl);							// 
-	jr z, L0730;						// 
-	inc hl;								// 
-	inc hl;								// 
-	inc hl;								// 
-	djnz L0727;							// 
-	ret;								// 
+	cp (hl);							// compare drive ID with current entry
+	jr z, L0730;						// jump if match found (drive already mounted)
+	inc hl;								// advance to next drive entry
+	inc hl;								// (each entry is 3 bytes)
+	inc hl;								// complete 3-byte entry traversal
+	djnz L0727;							// decrement B and loop if not zero
+	ret;								// return if not found in table
 
+;	// drive already mounted error
 L0730:
-	ld a, $1f;							// 
-	scf;								// 
-	ret;								// 
+	ld a, $1f;							// load error code $1f (drive already mounted)
+	scf;								// set carry flag to indicate error
+	ret;								// return with error
 
-	ld l, a;							// 
-	push hl;							// 
-	push bc;							// 
-	call L0722;							// 
-	pop bc;								// 
-	pop hl;								// 
-	ret c;								// 
-	ld a, c;							// 
-	and a;								// 
-	jr z, L0748;						// 
-	call L07C3;							// 
-	ld a, $0b;							// 
-	ccf;								// 
-	ret c;								// 
+	ld l, a;							// store drive identifier in L register
+	push hl;							// save drive identifier on stack
+	push bc;							// save BC register on stack
+	call L0722;							// check if drive is already mounted
+	pop bc;								// restore BC register from stack
+	pop hl;								// restore drive identifier from stack
+	ret c;								// return if carry set (drive already mounted)
+	ld a, c;							// get partition number
+	and a;								// check if zero (primary partition)
+	jr z, L0748;						// jump if primary partition
+	call L07C3;							// call partition configuration routine
+	ld a, $0b;							// load error code $0b (invalid partition)
+	ccf;								// complement carry flag
+	ret c;								// return if carry set (error)
 
+;	// mount partition on drive
 L0748:
-	inc c;								// 
-	ld a, l;							// 
-	ld hl, $2df2;						// 
-	push bc;							// 
-	push hl;							// 
-	rst $08;							// 
-	defb disk_info;						// 
-	pop hl;								// 
-	jr nc, L0756;						// 
-	pop bc;								// 
-	ret;								// 
+	inc c;								// increment partition number (make 1-based)
+	ld a, l;							// get drive identifier
+	ld hl, $2df2;						// point to disk info structure
+	push bc;							// save partition info on stack
+	push hl;							// save disk info pointer on stack
+	rst $08;							// call system function
+	defb disk_info;						// get disk information
+	pop hl;								// restore disk info pointer from stack
+	jr nc, L0756;						// jump if no error
+	pop bc;								// restore partition info from stack
+	ret;								// return with error
 
+;	// process disk information and mount
 L0756:
-	call L07E6;							// 
-	pop bc;								// 
-	ld a, (hl);							// 
-	call L077F;							// 
-	dec c;								// 
-	jr nz, L0769;						// 
-	push hl;							// 
-	push bc;							// 
-	call L07AB;							// 
-	pop bc;								// 
-	pop hl;								// 
-	ld c, a;							// 
+	call L07E6;							// call disk processing routine
+	pop bc;								// restore partition info from stack
+	ld a, (hl);							// load partition type from disk info
+	call L077F;							// validate partition type
+	dec c;								// decrement partition number (back to 0-based)
+	jr nz, L0769;						// jump if not primary partition
+	push hl;							// save HL register on stack
+	push bc;							// save partition info on stack
+	call L07AB;							// find next available drive letter
+	pop bc;								// restore partition info from stack
+	pop hl;								// restore HL register from stack
+	ld c, a;							// store drive letter in C register
 
+;	// finalize drive mounting in system table
 L0769:
-	ex de, hl;							// 
-	ld a, (de);							// 
-	push hl;							// 
-	push bc;							// 
-	call L03EA;							// 
-	pop bc;								// 
-	pop hl;								// 
-	ret c;								// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld (hl), c;							// 
-	inc hl;								// 
-	ld a, b;							// 
-	or ixl;								// 
-	or %10000000;						// 
-	ld (hl), a;							// 
-	ld a, c;							// 
-	ret;								// 
+	ex de, hl;							// exchange DE and HL (DE now points to drive info)
+	ld a, (de);							// load drive ID from drive info structure
+	push hl;							// save HL register on stack
+	push bc;							// save BC register on stack
+	call L03EA;							// call drive setup routine
+	pop bc;								// restore BC register from stack
+	pop hl;								// restore HL register from stack
+	ret c;								// return if carry set (error in drive setup)
+	ld (hl), a;							// store drive ID in drive table
+	inc hl;								// advance to next byte in drive table entry
+	ld (hl), c;							// store drive letter in drive table
+	inc hl;								// advance to flags byte in drive table entry
+	ld a, b;							// get drive/partition flags from B register
+	or ixl;								// combine with IXL flags
+	or %10000000;						// set bit 7 (active/bootable flag)
+	ld (hl), a;							// store combined flags
+	ld a, c;							// get filesystem type from C register
+	ret;								// return to caller
 
+;	// validate and decode partition type
 L077F:
-	push hl;							// 
-	push bc;							// 
-	inc hl;								// 
-	and %11100000;						// 
-	cp $80;								// 
-	jr nz, L079B;						// 
-	ld a, (hl);							// 
-	bit 7, a;							// 
-	ld a, $40;							// 
-	jr z, L079B;						// 
-	ld b, $40;							// 
-	and %00000111;						// 
-	cp 5;								// 
-	ld a, $30;							// 
-	jr nz, L079B;						// 
-	ld a, 18h;							// 
+	push hl;							// save HL register on stack
+	push bc;							// save BC register on stack
+	inc hl;								// advance to next byte in partition table
+	and %11100000;						// mask upper 3 bits of partition type
+	cp $80;								// check if type is $80 (bootable)
+	jr nz, L079B;						// jump if not bootable partition
+	ld a, (hl);							// load filesystem type byte
+	bit 7, a;							// check bit 7 (extended partition flag)
+	ld a, $40;							// default filesystem code $40
+	jr z, L079B;						// jump if not extended partition
+	ld b, $40;							// set B to $40 for extended partition
+	and %00000111;						// mask lower 3 bits (filesystem subtype)
+	cp 5;								// check if subtype is 5 (extended DOS)
+	ld a, $30;							// filesystem code for DOS partition
+	jr nz, L079B;						// jump if not DOS extended partition
+	ld a, 18h;							// filesystem code for FAT16 ($18)
 
+;	// finalize partition type validation
 L079B:
-	dec hl;								// 
-	ld c, a;							// 
-	ld a, (hl);							// 
-	and %11100000;						// 
-	cp $60;								// '£'
-	jr nz, L07A6;						// 
-	ld c, $b0;							// 
+	dec hl;								// return to original position in partition table
+	ld c, a;							// store filesystem type in C register
+	ld a, (hl);							// load partition type byte again
+	and %11100000;						// mask upper 3 bits
+	cp $60;								// check if type is $60
+	jr nz, L07A6;						// jump if not $60 type
+	ld c, $b0;							// set filesystem type to $b0 for type $60
 
+;	// restore registers and return filesystem type
 L07A6:
-	ld a, c;							// 
-	pop hl;								// 
-	ld c, l;							// 
-	pop hl;								// 
-	ret;								// 
+	ld a, c;							// get filesystem type from C register
+	pop hl;								// restore HL from stack (BC value)
+	ld c, l;							// store L in C register
+	pop hl;								// restore original HL from stack
+	ret;								// return to caller
 
+;;	// find next available drive letter
 L07AB:
-	ld c, a;							// 
-	call L07B4;							// 
-	ld a, c;							// 
-	ret c;								// 
-	inc a;								// 
-	jr L07AB;							// 
+	ld c, a;							// save drive letter in C register
+	call L07B4;							// check if drive letter is available
+	ld a, c;							// get drive letter back
+	ret c;								// return if carry set (drive available)
+	inc a;								// try next drive letter
+	jr L07AB;							// loop to check next letter
 
+;	// check if drive letter is already in use
 L07B4:
-	ld hl, $2d01;						// 
-	ld b, $0c;							// 
+	ld hl, $2d01;						// point to drive table (drive letter column)
+	ld b, $0c;							// check up to 12 drive entries
 
+;	// search loop through drive table
 L07B9:
-	ld a, (hl);							// 
-	cp c;								// 
-	ret z;								// 
-	inc hl;								// 
-	inc hl;								// 
-	inc hl;								// 
-	djnz L07B9;							// 
-	scf;								// 
-	ret;								// 
+	ld a, (hl);							// load drive letter from table
+	cp c;								// compare with requested drive letter
+	ret z;								// return with Z flag set if match found (in use)
+	inc hl;								// advance to next drive entry
+	inc hl;								// (each entry is 3 bytes)
+	inc hl;								// complete 3-byte entry traversal
+	djnz L07B9;							// decrement B and loop if not zero
+	scf;								// set carry flag (drive letter available)
+	ret;								// return to caller
 
+;	// configure drive in system drive table
 L07C3:
-	push bc;							// 
-	call L07FE;							// 
-	jr c, L07D9;						// 
-	ld iy, $2d00;						// 
-	ld b, $0c;							// 
+	push bc;							// save BC register on stack
+	call L07FE;							// validate drive configuration
+	jr c, L07D9;						// jump if error in validation
+	ld iy, $2d00;						// point IY to start of drive table
+	ld b, $0c;							// set counter for 12 drive slots
 
+;	// search for matching drive in table
 L07CF:
-	cp (iy + _flags);					// 
-	jr z, L07DE;						// 
-	call L07F7;							// 
-	djnz L07CF;							// 
+	cp (iy + _flags);					// compare with drive flags in table entry
+	jr z, L07DE;						// jump if match found (drive already configured)
+	call L07F7;							// advance to next drive table entry
+	djnz L07CF;							// decrement counter and loop if more entries
 
+;	// handle drive configuration error
 L07D9:
-	pop bc;								// 
-	ld a, $0b;							// 
-	scf;								// 
-	ret;								// 
+	pop bc;								// restore BC register from stack
+	ld a, $0b;							// load error code $0b (drive configuration failed)
+	scf;								// set carry flag to indicate error
+	ret;								// return with error to caller
 
+;	// drive already configured, check compatibility
 L07DE:
-	ld a, (iy + _tv_flag);				// 
-	and %00001111;						// 
-	or a;								// 
-	pop bc;								// 
-	ret;								// 
+	ld a, (iy + _tv_flag);				// load TV flag from drive table entry
+	and %00001111;						// mask lower 4 bits (compatibility flags)
+	or a;								// test if any compatibility flags are set
+	pop bc;								// restore BC register from stack
+	ret;								// return to caller
 
+;	// search for empty slot in drive table
 L07E6:
-	ld de, $2d00;						// 
-	ld b, $0c;							// 
+	ld de, $2d00;						// point DE to start of drive table
+	ld b, $0c;							// set counter for 12 drive slots
 
+;	// loop through drive table entries
 L07EB:
-	ld a, (de);							// 
-	and a;								// 
-	ret z;								// 
-	inc de;								// 
-	inc de;								// 
-	inc de;								// 
-	djnz L07EB;							// 
-	ld a, $0b;							// 
-	scf;								// 
-	ret;								// 
+	ld a, (de);							// load drive ID from current table entry
+	and a;								// check if slot is empty (drive ID = 0)
+	ret z;								// return if empty slot found (Z flag set)
+	inc de;								// advance to next drive table entry
+	inc de;								// (each entry is 3 bytes)
+	inc de;								// complete 3-byte entry traversal
+	djnz L07EB;							// decrement counter and loop if more entries
+	ld a, $0b;							// load error code $0b (no free drive slots)
+	scf;								// set carry flag to indicate error
+	ret;								// return with error
 
+;	// advance IY pointer to next drive table entry
 L07F7:
-	inc iy;								// 
-	inc iy;								// 
-	inc iy;								// 
-	ret;								// 
+	inc iy;								// advance IY pointer (each entry is 3 bytes)
+	inc iy;								// second byte of 3-byte entry
+	inc iy;								// third byte of 3-byte entry
+	ret;								// return to caller
 
+;	// validate and select drive identifier
 L07FE:
-	ld b, a;							// 
-	and a;								// 
-	scf;								// 
-	ret z;								// 
+	ld b, a;							// save drive identifier in B register
+	and a;								// check if drive identifier is zero
+	scf;								// set carry flag (error condition)
+	ret z;								// return with error if zero drive ID
 	cp '*';								// use current drive?
-	ld a, ($2d46);						// 
-	ret z;								// 
-	ld a, b;							// 
-	cp $24;								// 
-	ld a, ($2d4a);						// 
-	ret z;								// 
-	ld a, b;							// 
-	or a;								// 
-	ret;								// 
-	add a, b;							// 
+	ld a, ($2d46);						// load current drive identifier
+	ret z;								// return if '*' (use current drive)
+	ld a, b;							// restore original drive identifier
+	cp $24;								// check for '$' character (system drive)
+	ld a, ($2d4a);						// load system drive identifier
+	ret z;								// return if '$' (use system drive)
+	ld a, b;							// restore original drive identifier
+	or a;								// clear carry flag (no error)
+	ret;								// return with validated drive ID
+	add a, b;							// add B register to accumulator (unused code?)
 
 ;	dbtb "No system";					// Zeus - string with terminal bit 7 set
 	str "No system";					// RASM - string with terminal bit 7 set
 
+;	// 32-bit increment function (BCDE register pair)
 L081C:
-	inc e;								// 
-	ret nz;								// 
-	inc d;								// 
-	ret nz;								// 
-	inc c;								// 
-	ret nz;								// 
-	inc b;								// 
-	ret;								// 
+	inc e;								// increment low byte (E register)
+	ret nz;								// return if no overflow from E
+	inc d;								// increment second byte (D register)
+	ret nz;								// return if no overflow from D
+	inc c;								// increment third byte (C register)
+	ret nz;								// return if no overflow from C
+	inc b;								// increment high byte (B register)
+	ret;								// return after incrementing all bytes
 
+;	// 32-bit decrement function with underflow check
 L0824:
-	ld a, $ff;							// 
-	dec e;								// 
-	cp e;								// 
-	ret nz;								// 
-	dec d;								// 
-	cp d;								// 
-	ret nz;								// 
-	dec c;								// 
-	cp c;								// 
-	ret nz;								// 
-	dec b;								// 
-	ret;								// 
+	ld a, $ff;							// load $FF (underflow detection value)
+	dec e;								// decrement low byte (E register)
+	cp e;								// check if E underflowed to $FF
+	ret nz;								// return if no underflow from E
+	dec d;								// decrement second byte (D register)
+	cp d;								// check if D underflowed to $FF
+	ret nz;								// return if no underflow from D
+	dec c;								// decrement third byte (C register)
+	cp c;								// check if C underflowed to $FF
+	ret nz;								// return if no underflow from C
+	dec b;								// decrement high byte (B register)
+	ret;								// return after decrementing all bytes
 
+;	// 32-bit addition (BCDE = BCDE + HLDE)
 L0831:
-	add hl, de;							// 
-	ex de, hl;							// 
-	ret nc;								// 
-	inc bc;								// 
-	ret;								// 
+	add hl, de;							// add DE to HL (low 16 bits)
+	ex de, hl;							// exchange DE and HL registers
+	ret nc;								// return if no carry from low 16 bits
+	inc bc;								// increment high 16 bits (BC) if carry
+	ret;								// return to caller
 
+;	// 32-bit subtraction (BCDE = BCDE - HLDE)
 L0836:
-	or a;								// 
-	ex de, hl;							// 
-	sbc hl, de;							// 
-	ex de, hl;							// 
-	ret nc;								// 
-	dec bc;								// 
-	ret;								// 
+	or a;								// clear carry flag for subtraction
+	ex de, hl;							// exchange DE and HL registers
+	sbc hl, de;							// subtract DE from HL with carry
+	ex de, hl;							// exchange back to restore register usage
+	ret nc;								// return if no borrow from low 16 bits
+	dec bc;								// decrement high 16 bits (BC) if borrow
+	ret;								// return to caller
 
 ; 06_formatting.asm
 
@@ -1561,23 +1588,27 @@ L0861:
 	call L087D;							// convert and print digit
 	ld de, $03e8;						// 1000 (thousands place)
 
+;	// format hundreds and tens digits
 L086a:
-	call L087D;							// 
-	ld de, $64;							// 
-	call L087D;							// 
+	call L087D;							// convert and print thousands digit
+	ld de, $64;							// 100 (hundreds place)
+	call L087D;							// convert and print hundreds digit
 
+;	// format ones and remainder
 L0873:
-	ld de, $0a;							// 
-	call L087D;							// 
-	ld e, 1;							// 
-	ld c, $30;							// 
+	ld de, $0a;							// 10 (tens place)
+	call L087D;							// convert and print tens digit
+	ld e, 1;							// 1 (ones place)
+	ld c, $30;							// ASCII '0' for digit conversion
 
+;	// divide number by place value and convert to ASCII
 L087D:
-	ld a, $2f;							// 
+	ld a, $2f;							// start with ASCII '/' (one before '0')
 
+;	// division loop to count digits
 L087F:
-	inc a;								// 
-	or a;								// 
+	inc a;								// increment ASCII digit counter
+	or a;								// clear carry flag for subtraction
 	sbc hl, de;							// 
 	jr nc, L087F;						// 
 	add hl, de;							// 
