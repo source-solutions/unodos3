@@ -8177,7 +8177,7 @@ L36E7:
 	ld b, h;							// store H back to B
 	jr nc, L36F0;						// jump if no carry (no overflow)
 	ld de, 0;							// clear DE (overflow handling)
-	ld b, d; 							// 
+	ld b, d; 							// clear B register (overflow handling)
 	ld c, e;							// clear BC (overflow handling)
 
 L36F0:
