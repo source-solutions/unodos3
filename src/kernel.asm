@@ -3798,89 +3798,98 @@ L1492:
 	ld (ix + 6), a;						// store error code in file descriptor
 	ld hl, $2600;						// load buffer address
 	push hl;							// save buffer address
-	call L11FB;							// 
-	pop hl;								// 
-	ret c;								// 
+	call L11FB;							// call buffer read function
+	pop hl;								// restore HL register
+	ret c;								// return if error
 
+; // directory entry processing loop
 L14A0:
-	dec (ix + 6);						// 
-	jr nz, L14AA;						// 
-	call L1250;							// 
-	jr L1492;							// 
+	dec (ix + 6);						// decrement entry counter
+	jr nz, L14AA;						// jump if more entries to process
+	call L1250;							// call sector advance function
+	jr L1492;							// jump to reload buffer
 
+; // process current directory entry
 L14AA:
-	ld a, (hl);							// 
-	and a;								// 
-	jr z, L1505;						// 
-	cp 229;								// RESTORE, $e5
-	jr z, L14C3;						// 
-	ld c, l;							// 
-	ld a, l;							// 
-	add a, 11;							// 
-	ld l, a;							// 
-	ld a, (hl);							// 
-	ld l, c;							// 
-	cp 15;								// $0f
-	jr nz, L14EA;						// 
+	ld a, (hl);							// load first character of entry
+	and a;								// check if entry is empty (end of directory)
+	jr z, L1505;						// jump if end of directory
+	cp 229;								// check for deleted entry marker ($e5)
+	jr z, L14C3;						// jump if deleted entry
+	ld c, l;							// save current entry pointer in C
+	ld a, l;							// load entry pointer
+	add a, 11;							// add 11 to point to attributes byte
+	ld l, a;							// update pointer to attributes
+	ld a, (hl);							// load file attributes
+	ld l, c;							// restore entry pointer
+	cp 15;								// check for long filename entry ($0f)
+	jr nz, L14EA;						// jump if not long filename entry
 
+; // skip long filename entries
 L14BD:
-	ld bc, $20;							// 
-	add hl, bc;							// 
-	jr L14A0;							// 
+	ld bc, $20;							// load directory entry size (32 bytes)
+	add hl, bc;							// advance to next directory entry
+	jr L14A0;							// jump back to process next entry
 
+; // handle deleted directory entry
 L14C3:
-	call L14C8;							// 
-	jr L14BD;							// 
+	call L14C8;							// call deleted entry handler
+	jr L14BD;							// jump to skip entry
 
+; // process deleted entry for reuse tracking
 L14C8:
-	bit 1, (iy + 52);					// 
-	ret nz;								// 
-	set 1, (iy + 52);					// 
-	ld a, (ix + 6);						// 
-	ld (ix + 30), a;					// 
-	ld a, (ix + 19);					// 
-	ld (ix + 31), a;					// 
-	call L115C;							// 
-	call L19D3;							// 
-	call L1142;							// 
-	call L19B9;							// 
-	ret;								// 
+	bit 1, (iy + 52);					// check if already tracking deleted entry
+	ret nz;								// return if already tracking
+	set 1, (iy + 52);					// set deleted entry tracking flag
+	ld a, (ix + 6);						// load current entry number
+	ld (ix + 30), a;					// store as deleted entry number
+	ld a, (ix + 19);					// load current sector high
+	ld (ix + 31), a;					// store as deleted entry sector
+	call L115C;							// call file descriptor function
+	call L19D3;							// call position storage function
+	call L1142;							// call sector calculation function
+	call L19B9;							// call position update function
+	ret;								// return from function
 
+; // check file attributes and compare filenames
 L14EA:
-	ld e, a;							// 
-	ld a, (iy + 51);					// 
-	and a;								// 
-	jr z, L14F4;						// 
-	and e;								// 
-	jr z, L14BD;						// 
+	ld e, a;							// store file attributes in E
+	ld a, (iy + 51);					// load file attribute filter
+	and a;								// check if filter is set
+	jr z, L14F4;						// jump if no filter
+	and e;								// apply filter to file attributes
+	jr z, L14BD;						// skip entry if doesn't match filter
 
+; // compare entry with search filename
 L14F4:
-	ld de, ($3c04);						// 
-	call L1417;							// 
-	jr nz, L14BD;						// 
-	ld (ix + 28), l;					// 
-	ld (ix + 29), h;					// 
-	or a;								// 
-	ret;								// 
+	ld de, ($3c04);						// load search filename pointer
+	call L1417;							// call filename comparison function
+	jr nz, L14BD;						// skip if no match
+	ld (ix + 28), l;					// store matched entry low address
+	ld (ix + 29), h;					// store matched entry high address
+	or a;								// clear carry flag (success)
+	ret;								// return with match found
 
+; // handle end of directory (file not found)
 L1505:
-	call L14C8;							// 
-	ld a, (ix + 30);					// 
-	ld (ix + 6), a;						// 
-	ld a, (ix + 31);					// 
-	ld (ix + 19), a;					// 
-	call L19E0;							// 
-	call L114F;							// 
-	call L19C6;							// 
-	call L1135;							// 
-	ld a, 5;							// 
-	scf;								// 
-	ret;								// 
+	call L14C8;							// call deleted entry handler
+	ld a, (ix + 30);					// load saved deleted entry number
+	ld (ix + 6), a;						// restore entry counter
+	ld a, (ix + 31);					// load saved deleted entry sector
+	ld (ix + 19), a;					// restore sector number
+	call L19E0;							// call position restore function
+	call L114F;							// call sector setup function
+	call L19C6;							// call position load function
+	call L1135;							// call position store function
+	ld a, 5;							// load error code 5 (file not found)
+	scf;								// set carry flag (error)
+	ret;								// return with error
 
+; // initialize file lookup operation
 L1524:
-	ld bc, $ffff;						// 
-	ld ($3c1f), bc;						// 
-	ld ($3c20), bc;						// 
+	ld bc, $ffff;						// initialize counters to -1 (not found)
+	ld ($3c1f), bc;						// store in first counter variable
+	ld ($3c20), bc;						// store in second counter variable
 
 L152F:
 	ld de, $2c00;						// 
@@ -3888,103 +3897,110 @@ L152F:
 	rst $30;							// 
 	dec b;								// 
 	pop hl;								// 
-	ld (iy + 52), a;					// 
-	rra;								// 
-	jr nc, L1555;						// 
-	push hl;							// 
-	push iy;							// 
-	pop hl;								// 
-	ld l, $80;							// 
-	ld de, $2c80;						// 
-	push de;							// 
-	ld a, (iy + 127);					// FIXME negative offset 
-	push af;							// 
-	sub $80;							// 
-	ld b, 0;							// 
-	ld c, a;							// 
-	ldir;								// 
-	pop af;								// 
-	pop de;								// 
-	ld e, a;							// 
-	pop hl;								// 
+	ld (iy + 52), a;					// store operation flags
+	rra;								// rotate right to check bit 0
+	jr nc, L1555;						// jump if directory operation
+	push hl;							// save HL register
+	push iy;							// save IY register
+	pop hl;								// load IY value into HL
+	ld l, $80;							// set L to $80 (buffer offset)
+	ld de, $2c80;						// load destination buffer address
+	push de;							// save destination address
+	ld a, (iy + 127);					// load buffer size (FIXME: negative offset)
+	push af;							// save buffer size
+	sub $80;							// subtract $80 from buffer size
+	ld b, 0;							// clear B register
+	ld c, a;							// store adjusted size in BC
+	ldir;								// copy buffer data
+	pop af;								// restore original buffer size
+	pop de;								// restore destination address
+	ld e, a;							// store buffer size in E
+	pop hl;								// restore HL register
 
+; // initialize filename processing
 L1555:
-	xor a;								// 
-	ld (ix + 29), a;					// 
-	ld a, (hl);							// 
-	and a;								// 
-	jp z, L1609;						// 
-	cp '/';								// $2f
-	jr nz, L156E;						// 
-	bit 0, (iy + 52);					// 
-	jr z, L156D;						// 
-	cp a;								// 
-	ld e, $80;							// 
-	ld (de), a;							// 
-	inc de;								// 
+	xor a;								// clear A register
+	ld (ix + 29), a;					// clear high byte of entry pointer
+	ld a, (hl);							// load first character of path
+	and a;								// check if path is empty
+	jp z, L1609;						// jump if empty path
+	cp '/';								// check for root directory marker
+	jr nz, L156E;						// jump if not root directory
+	bit 0, (iy + 52);					// check if absolute path flag set
+	jr z, L156D;						// jump if not absolute path
+	cp a;								// clear zero flag
+	ld e, $80;							// load buffer offset
+	ld (de), a;							// store path separator
+	inc de;								// advance buffer pointer
 
+; // advance past root directory marker
 L156D:
-	inc hl;								// 
+	inc hl;								// advance path pointer past '/'
 
+; // setup path processing
 L156E:
-	ld ($3dea), de;						// 
-	call z, L1169;						// 
-	call nz, L119C;						// 
+	ld ($3dea), de;						// store current buffer pointer
+	call z, L1169;						// call root directory setup if needed
+	call nz, L119C;						// call current directory setup if not root
 
+; // main path component processing loop
 L1578:
-	ld ($3dec), hl;						// 
-	ld a, (hl);							// 
-	and a;								// 
-	jp z, L160D;						// 
-	call L19ED;							// 
-	call L12A6;							// 
-	ld de, $3c06;						// 
-	push de;							// 
-	call L139B;							// 
-	pop de;								// 
-	ret c;								// 
-	push hl;							// 
-	ex de, hl;							// 
-	xor a;								// 
-	call L147B;							// 
-	pop de;								// 
-	jp c, L162E;						// 
-	ld c, l;							// 
-	ld a, l;							// 
-	add a, $0b;							// 
-	ld l, a;							// 
-	bit 4, (hl);						// 
-	ld l, c;							// 
-	ex de, hl;							// 
-	jr nz, L15B5;						// 
-	ld a, (hl);							// 
-	and a;								// 
-	jr z, L15AC;						// 
-	ld a, $13;							// 
-	scf;								// 
-	ret;								// 
+	ld ($3dec), hl;						// store current path position
+	ld a, (hl);							// load current character
+	and a;								// check if end of path
+	jp z, L160D;						// jump if end of path reached
+	call L19ED;							// call path position storage
+	call L12A6;							// call directory setup
+	ld de, $3c06;						// load filename buffer address
+	push de;							// save buffer address
+	call L139B;							// call filename extraction function
+	pop de;								// restore buffer address
+	ret c;								// return if error in filename extraction
+	push hl;							// save path pointer
+	ex de, hl;							// exchange DE/HL (filename buffer to HL)
+	xor a;								// clear A register
+	call L147B;							// call directory entry search function
+	pop de;								// restore path pointer
+	jp c, L162E;						// jump if search failed
+	ld c, l;							// save entry pointer low in C
+	ld a, l;							// load entry pointer low
+	add a, $0b;							// add 11 to point to attributes
+	ld l, a;							// update pointer to attributes
+	bit 4, (hl);						// check directory attribute bit
+	ld l, c;							// restore entry pointer
+	ex de, hl;							// exchange back to original order
+	jr nz, L15B5;						// jump if directory entry
+	ld a, (hl);							// load next path character
+	and a;								// check if end of path
+	jr z, L15AC;						// jump if end of path (file found)
+	ld a, $13;							// load error code 19 (not a directory)
+	scf;								// set carry flag (error)
+	ret;								// return with error
 
+; // handle successful file found at end of path
 L15AC:
-	ld a, (iy + 52);					// 
-	rla;								// 
-	ld a, $11;							// 
-	ret c;								// 
-	jr L1615;							// 
+	ld a, (iy + 52);					// load operation flags
+	rla;								// rotate left to check bit 7
+	ld a, $11;							// load error code 17
+	ret c;								// return error if wrong operation type
+	jr L1615;							// jump to success handler
 
+; // handle directory entry found - traverse into subdirectory
 L15B5:
-	bit 0, (iy + 52);					// 
-	jr z, L15FC;						// 
-	push hl;							// 
-	ld hl, ($3dec);						// 
-	ld de, ($3dea);						// 
-	ld a, (hl);							// 
-	cp '.';								// external command?
-	jr z, L15D5;						// 
+	bit 0, (iy + 52);					// check if path building is enabled
+	jr z, L15FC;						// jump if not building path
+	push hl;							// save entry pointer
+	ld hl, ($3dec);						// load current path position
+	ld de, ($3dea);						// load path buffer pointer
+	ld a, (hl);							// load next path character
+	cp '.';								// check for '.' (current/parent directory)
+	jr z, L15D5;						// jump if dot directory
 
+; // copy directory name to path buffer
 L15C8:
-	ld a, (hl);							// 
-	inc hl;								// 
-	and a;								// 
+	ld a, (hl);							// load character from path
+	inc hl;								// advance path pointer
+	and a;								// check if end of component
 	jr z, L15E8;						// 
 	cp '/';								// $2f
 	jr z, L15E8;						// 
