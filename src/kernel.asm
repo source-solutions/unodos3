@@ -35,6 +35,8 @@ start:
 	ld sp, $5e00;						// set stack pointer to $5e00 (below UDG area)
 	jp L0101;							// jump to main initialization routine
 
+;;; 01_restarts.asm
+
 ;	// automatically mapped in by the hardware after M1 when PC=0008h
 ;	// main API entry point
 	org $0008
@@ -175,6 +177,8 @@ L009F:
 	push hl;							// push vector address onto stack
 	ld hl, (mmc_2);						// restore original HL register
 	ret;								// return - will jump to vector address
+
+;;; 02_init.asm
 
 sys_folder:
 	defm "/dos";						// system folder
@@ -380,6 +384,8 @@ L024B:
 L0251:
 	ld hl, $0001;						// BASIC ROM entry point after initialization
 	jp L1FFB;							// unmap divMMC and jump into BASIC ROM
+
+;;; 03_screen.asm
 
 L0257:
 	call L02EF;							// construct full system file path with extension
@@ -814,6 +820,8 @@ L049E:
 	rst $10;							// print units digit
 	ret;								// return to caller
 
+;;; 04_files.asm
+
 ;	// automatically mapped in by the hardware after M1 when PC=004C6h
 ;	// Automapped entry point for SAVE command
 	org $04c6
@@ -1137,6 +1145,8 @@ L066B:
 
 L0670:
 	defb 0;								// null terminator / padding byte
+
+;;; 05_math.asm
 
 	org $0686
 L0686:
@@ -1509,6 +1519,8 @@ L0836:
 	dec bc;								// 
 	ret;								// 
 
+; 06_formatting.asm
+
 ;	// called from dirs.io
 ;	// output a string of characters, zero terminated
 ;	org $083e
@@ -1786,6 +1798,8 @@ L093D:
 	ld b, $0b;							// 
 	add hl, de;							// 
 	dec bc;								// 
+
+;;; 07_dispatcher.asm
 
 ;	// RST08_handler
 L0985:
@@ -2269,6 +2283,8 @@ L0BFE:
 	ld b, $b7;							// set operation code
 	ret;								// return with result
 
+;;; 08_error.asm
+
 ;	// based on the Spectrum ROM's main_4 / main_g routine
 L0C06:
 	ld (err_nr), a;						// get error number
@@ -2422,6 +2438,8 @@ L0CFF:
 	ld hl, $16c5;						// BASIC command loop address
 	jp L1FFB;							// unmap and return to BASIC
 
+;;; 09_memory.asm
+
 L0D05:
 	ld a, 1;							// set error code to 1
 	rst $20;							// call error handler
@@ -2558,6 +2576,8 @@ L0DCF:
 	out (mmcram), a;					// divMMC RAM page 2
 	ld a, b;							// restore B register
 	ret;								// return to caller
+
+;;; 10_utils.asm
 
 L0DEB:;									// called from dirs.io
 	ld a, 2;							// screen
@@ -4890,6 +4910,8 @@ L1B2B:
 	jr nz, L1B2B;						// 
 	ret;								// 
 
+;;; data.asm
+
 	org $1b37
 copyright:
 	defb "UnoDOS 3.141 (Ram)       ", $0d, $0d;
@@ -5055,6 +5077,8 @@ out_pair:
 sys_filename:
 	defm "unodos";						// UNODOS.SYS filename
 	defb 0;								// end marker
+
+;;; spi.asm
 
 L1C5F:
 	ld l, l;							// SPI data table entry
@@ -5223,7 +5247,7 @@ L1D50:
 L1D5E:
 	push af;							// save accumulator
 	ld a, $ff;							// deselect value (all bits high)
-	out (mmcdev), a;						// Select all available SD cards
+	out (mmcdev), a;					// Select all available SD cards
 	pop af;								// restore accumulator
 	ret;								// return to caller
 
@@ -5565,6 +5589,8 @@ L1F32:
 	djnz L1F23;							// loop if counter not zero
 	ret;								// return to caller
 
+;;; 13_romtest.asm
+
 ;	org $1f3f
 file_test:
 	ld hl, msg_ok;						// point to OK message
@@ -5607,6 +5633,8 @@ not_cordy:
 get_rom_byte:
 	ld a, ($3200);						// read byte at $3200 in current ROM
 	ret;								// return with byte in A register
+
+;;; vector.asm
 
 ;	// vector table for 'dot' commands
 	org $1FCA
@@ -5662,6 +5690,8 @@ L1FFB:
 	rst $38;							// mask interrupt (filler)
 	rst $38;							// mask interrupt (filler)
 	rst $38;							// mask interrupt (filler)
+
+;;; basic.asm
 
 ;	// UNODOS.SYS starts here
 	org $2000
