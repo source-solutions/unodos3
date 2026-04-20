@@ -1254,7 +1254,7 @@ mount_filesystems_loop:
 	ret z;								// return if zero flag set
 	ld l, a;							// store drive number in L register
 	push hl;							// save drive number on stack
-	call L0B19;							// call drive initialization routine
+	call init_file_handle;				// call drive initialization routine
 	pop hl;								// restore drive number from stack
 	ret c;								// return if carry set (error)
 	ld a, l;							// get drive number back
@@ -1918,12 +1918,11 @@ get_handler_address:
 	ret;								// return with default date/time
 
 	and a;								// test if drive number is zero
-	jr nz, L09E1;						// if not zero, set as current drive
+	jr nz, set_current_drive;			// if not zero, set as current drive
 	ld a, ($2d46);						// get current drive number
 	or a;								// set flags based on drive
 	ret;								// return with current drive
 
-L09E1:
 set_current_drive:
 	cp '*';								// use current drive? test for file commands
 	ret z;								// return if using current drive
@@ -1939,7 +1938,6 @@ set_current_drive:
 	ld hl, $2d00;						// point to file handle table
 	ld b, $0c;							// 12 file handles to check
 
-L09F6:
 search_file_handles:
 	ld a, (hl);							// get handle entry
 	inc hl;								// advance to next field
@@ -1949,10 +1947,10 @@ search_file_handles:
 	cp c;								// compare with target handle
 	scf;								// set carry flag (assume found)
 	ret z;								// return if handle found
-	djnz L09F6;							// loop through all handles
+	djnz search_file_handles;			// loop through all handles
 	ld a, c;							// get handle number
 	push bc;							// save BC register
-	call L0A5F;							// call handle processing routine
+	call handle_file_operation;			// call handle processing routine
 	pop bc;								// restore BC register
 	ret c;								// return if error occurred
 	ld a, c;							// get handle number back
@@ -1967,7 +1965,6 @@ search_file_handles:
 	ret c;								// return if error
 	ld hl, $2d24;						// point to system data table
 
-L0A24:
 process_filesystem_table:
 	ld e, (hl);							// get low byte from table
 	inc hl;								// advance to next byte
@@ -1979,12 +1976,11 @@ process_filesystem_table:
 	scf;								// set carry flag (error)
 	ret z;								// return if end of table
 	push hl;							// save HL register
-	call L0A36;							// get file system parameters
+	call get_filesystem_params;			// get file system parameters
 	pop hl;								// restore HL register
 	ret nc;								// return if no error
-	jr L0A24;							// handle error case
+	jr process_filesystem_table;		// handle error case
 
-L0A36:
 get_filesystem_params:
 	ld hl, ($3df4);						// get file system base address
 	ld bc, ($3df6);						// get file system parameters
@@ -1993,7 +1989,6 @@ get_filesystem_params:
 	ld de, ($3df2);						// get additional parameters
 	ret;								// return to caller
 
-L0A46:
 invoke_file_operation:
 	push de;							// save DE register
 	ld e, iyl;							// get system call number
@@ -2001,21 +1996,19 @@ invoke_file_operation:
 	ld ixh, e;							// store call number in IXH
 	pop de;								// restore DE register
 	jp find_handle_with_setup;			// jump to handler (04_files.asm)
-	call L0A46;							// invoke file operation
+	call invoke_file_operation;			// invoke file operation
 	ret c;								// return if error
 	push hl;							// save HL register
-	call L0A77;							// process operation result
+	call process_file_comparison;		// process operation result
 	pop hl;								// restore HL register
-	jr nc, L0A63;						// if no error, continue
+	jr nc, process_operation_result;	// if no error, continue
 	ld a, $0a;							// error code: access denied
 	ret;								// return with error
 
-L0A5F:
 handle_file_operation:
-	call L0A46;							// invoke file operation
+	call invoke_file_operation;			// invoke file operation
 	ret c;								// return if error
 
-L0A63:
 process_operation_result:
 	push hl;							// save HL register
 	ld h, (iy + _err_sp);				// get error stack pointer
@@ -2023,10 +2016,9 @@ process_operation_result:
 	add a, a;							// multiply by 2 for word index
 	add a, (iy + _tv_flag);				// add base offset
 	ld l, a;							// store in L
-	jr nc, L0A71;						// if no carry, continue
+	jr nc, get_handler_dispatch_addr;	// if no carry, continue
 	inc h;								// handle carry to high byte
 
-L0A71:
 get_handler_dispatch_addr:
 	ld a, (hl);							// get low byte of handler address
 	inc hl;								// advance to high byte
@@ -2035,18 +2027,16 @@ get_handler_dispatch_addr:
 	ex (sp), hl;						// put handler address on stack
 	ret;								// "call" handler by returning to it
 
-L0A77:
 process_file_comparison:
 	push iy;							// save IY register
 	pop hl;								// copy IY to HL
 	and a;								// test A register
-	jr nz, L0A84;						// if not zero, branch
+	jr nz, calc_address_offset;			// if not zero, branch
 	ld a, 7;							// offset to compare value
 	add a, l;							// add to address
 	ld l, a;							// store result
 	jp compare_32bit;					// jump to comparison routine (04_files.asm)
 
-L0A84:
 calc_address_offset:
 	add a, a;							// shift A left (multiply by 2)
 	add a, a;							// shift A left again (multiply by 4)
@@ -2076,7 +2066,7 @@ calc_address_offset:
 	ld b, a;							// store updated high byte
 	ret;								// return with 32-bit sum in BCDE
 
-	call L0B19;							// call file operation handler
+	call init_file_handle;				// call file operation handler
 	ret c;								// return if operation failed
 	push hl;							// save HL register
 	ld hl, $2cf0;						// point to file handle table
@@ -2092,16 +2082,15 @@ calc_address_offset:
 	pop hl;								// restore HL register
 	ret;								// return to caller
 
-	call L0AD0;							// call handle validation routine
+	call get_file_handle;				// call handle validation routine
 	ret c;								// return if validation failed
 	ld a, ixh;							// get handle number for cleanup
 	push af;							// save A register
 	ld hl, $2cf0;						// point to file handle table
-	call L0ACB;							// clear file handle entry
+	call clear_handle_entry;			// clear file handle entry
 	pop af;								// restore A register
 	ld hl, $2e22;						// point to drive table
 
-L0ACB:
 clear_handle_entry:
 	add a, l;							// add offset to base address
 	ld l, a;							// store result in L
@@ -2109,7 +2098,6 @@ clear_handle_entry:
 	ld (hl), a;							// clear table entry
 	ret;								// return to caller
 
-L0AD0:
 get_file_handle:
 	push de;							// save DE register
 	ld de, $2cf0;						// point to file handle table
@@ -2123,7 +2111,6 @@ get_file_handle:
 	jr nz, L0B1E;						// if valid handle, continue
 	ld a, $0d;							// error code: invalid handle
 
-L0AE1:
 return_handle_error:
 	pop de;								// restore DE register
 	scf;								// set carry flag (error)
@@ -2133,11 +2120,10 @@ return_handle_error:
 	ld b, $0c;							// 12 file handles maximum
 	ld c, 0;							// counter for open files
 
-L0AEB:
 count_open_files_loop:
 	ld a, (de);							// get file handle number
 	and a;								// test if handle is in use
-	jr z, L0AFF;						// skip if handle not in use
+	jr z, advance_handle_pointer;		// skip if handle not in use
 	inc c;								// increment open file count
 	push de;							// save DE register
 	push bc;							// save BC register
@@ -2152,12 +2138,11 @@ count_open_files_loop:
 	pop bc;								// restore BC register
 	pop de;								// restore DE register
 
-L0AFF:
 advance_handle_pointer:
 	inc de;								// advance to next handle entry
 	inc de;								// (each entry is 3 bytes)
 	inc de;								// complete handle entry skip
-	djnz L0AEB;							// loop through all handles
+	djnz count_open_files_loop;			// loop through all handles
 	ld a, c;							// get count of open files
 	ret;								// return with count
 
@@ -2171,13 +2156,13 @@ advance_handle_pointer:
 	ld e, (iy + _tv_flag);				// get TV flag
 	ld iyl, c;							// save drive number
 
-L0B19:
 init_file_handle:
 	call validate_filename_buffer;		// initialize file handle (04_files.asm)
 	ret c;								// return if initialization failed
 	push de;							// save DE register
 
 L0B1E:
+handle_file_with_drive:
 	ld e, a;							// save handle number
 	ld d, iyl;							// get saved parameter
 	ld a, ixh;							// get operation type
@@ -2186,8 +2171,9 @@ L0B1E:
 	ld a, ($2d46);						// get current drive number
 
 L0B2A:
+validate_drive_param:
 	call configure_system_drive;		// validate drive (04_files.asm)
-	jr c, L0AE1;						// return with error if invalid
+	jr c, return_handle_error;			// return with error if invalid
 	push af;							// save drive number
 	ld a, (iy + _flags);				// get file flags
 	ld iyh, a;							// save in IYH
@@ -2212,6 +2198,7 @@ L0B2A:
 	inc h;								// handle carry to high byte
 
 L0B5A:
+get_handler_from_table:
 	ld a, (hl);							// get low byte of handler address
 	inc hl;								// advance to high byte
 	ld h, (hl);							// get high byte of handler address
@@ -2226,11 +2213,13 @@ L0B5A:
 	ret;								// return to caller
 
 L0B6E:
+restore_memory_state:
 	push hl;							// save handler address
 	ld hl, ($3df4);						// restore saved HL register
 	ret;								// return with HL restored
 
 L0B73:
+handle_drive_table_op:
 	ld ixh, a;							// save operation type in IXH
 	ld hl, $2e22;						// point to drive table
 	add a, l;							// add operation offset
@@ -2249,10 +2238,12 @@ L0B73:
 	jr nc, L0B8F;						// continue if valid
 
 L0B8c:
+filesystem_error:
 	ld a, $0e;							// error code: invalid file system
 	ret;								// return with error
 
 L0B8F:
+validate_filesystem:
 	ld c, a;							// save validation result
 	ld a, b;							// restore file system type
 	and %00000111;						// mask lower 3 bits
@@ -2279,18 +2270,21 @@ L0B8F:
 	inc h;								// handle carry to high byte
 
 L0BAF:
+process_filesystem_entry:
 	ld bc, 4;							// copy 4 bytes
 	ldir;								// block copy HL to DE
 	ld c, 6;							// set result length
 	jr L0BFE;							// jump to completion
 
 L0BB8:
+handle_standard_filesystem:
 	push hl;							// save HL register
 	ld b, 6;							// process 6 file systems
 	ld hl, $2c00;						// point to file system table
 	ld de, $2df2;						// point to output buffer
 
 L0BC1:
+filesystem_table_loop:
 	push bc;							// save loop counter
 	push hl;							// save table pointer
 	ld a, (hl);							// get file system entry
@@ -2309,6 +2303,7 @@ L0BC1:
 	xor a;								// clear accumulator
 
 L0BD5:
+copy_filesystem_data:
 	push af;							// save entry index
 	or c;								// combine with file system type
 	ld (de), a;							// store in output buffer
@@ -2330,6 +2325,7 @@ L0BD5:
 	jr c, L0BD5;						// loop if more entries
 
 L0BED:
+advance_filesystem_ptr:
 	pop hl;								// restore table pointer
 	ld bc, $28;							// each entry is 40 bytes
 	add hl, bc;							// advance to next file system entry
@@ -2344,6 +2340,7 @@ L0BED:
 	ld c, l;							// copy low byte to C
 
 L0BFE:
+complete_buffer_operation:
 	ld hl, $2df2;						// point to data buffer
 	pop de;								// restore DE register
 	rst $30;							// call ROM routine (calculator)
@@ -2354,6 +2351,7 @@ L0BFE:
 
 ;	// based on the Spectrum ROM's main_4 / main_g routine
 L0C06:
+error_handler_entry:
 	ld (err_nr), a;						// get error number
 	res 5, (iy + _flags);				// no new key
 	ld sp, (err_sp);					// error stack pointer to SP
@@ -2384,6 +2382,7 @@ L0C06:
 	ld b, a;							// save error number in B
 
 L0C4d:
+handle_error_message:
 	ld a, ($3df9);						// get current divMMC page
 	push af;							// save current page
 	xor a;								// select page 0
@@ -2399,6 +2398,7 @@ L0C4d:
 	jr L0C82;							// print message
 
 L0C67:
+handle_unknown_error:
 	ld a, b;							// get error number
 	cp 1;								// check if error number is 1
 	jr z, L0C78;						// if so, use BASIC ROM message

@@ -104,7 +104,7 @@ keyboard_test_pattern:
 L004B equ keyboard_test_pattern + 2;	// points to RET instruction in L0049
 
 char_process_continue:
-	jp L0C06;							// jump to character processing continuation
+	jp error_handler_entry;				// jump to character processing continuation
 
 cr_string:
 	defb $0d, 0;						// carriage return followed by string terminator
@@ -728,7 +728,7 @@ process_table_entry:
 	ld h, d;							// copy address to HL
 	ld l, e;							// complete address transfer
 	call memory_address_calc;			// call address handling routine
-	jp L0B5A;							// jump to main processing routine
+	jp get_handler_from_table;			// jump to main processing routine
 
 get_drive_info:
 	ld hl, $2df2;						// point to drive info buffer
@@ -2077,7 +2077,7 @@ calc_address_offset:
 	ld a, iyh;							// get file flags
 	ld (hl), a;							// store flags in handle entry
 	ld a, ixh;							// get handle number for finalization
-	call L0B73;							// call handle completion routine
+	call handle_drive_table_op;			// call handle completion routine
 	pop af;								// restore saved handle number
 	pop hl;								// restore HL register
 	ret;								// return to caller
@@ -2108,7 +2108,7 @@ get_file_handle:
 	ld d, a;							// save handle value
 	ld a, ixh;							// get current operation
 	ld ixh, d;							// store handle in IXH
-	jr nz, L0B1E;						// if valid handle, continue
+	jr nz, handle_file_with_drive;		// if valid handle, continue
 	ld a, $0d;							// error code: invalid handle
 
 return_handle_error:
@@ -2161,15 +2161,15 @@ init_file_handle:
 	ret c;								// return if initialization failed
 	push de;							// save DE register
 
-L0B1E:
+handle_file_with_drive:
 	ld e, a;							// save handle number
 	ld d, iyl;							// get saved parameter
 	ld a, ixh;							// get operation type
 	cp '*';								// use current drive?
-	jr nz, L0B2A;						// if not, use specified drive
+	jr nz, validate_drive_param;		// if not, use specified drive
 	ld a, ($2d46);						// get current drive number
 
-L0B2A:
+validate_drive_param:
 	call configure_system_drive;		// validate drive (04_files.asm)
 	jr c, return_handle_error;			// return with error if invalid
 	push af;							// save drive number
@@ -2192,15 +2192,15 @@ L0B2A:
 	add a, a;							// multiply by 2 (word entries)
 	add a, l;							// add to base address
 	ld l, a;							// store calculated address
-	jr nc, L0B5A;						// jump if no carry
+	jr nc, get_handler_from_table;		// jump if no carry
 	inc h;								// handle carry to high byte
 
-L0B5A:
+get_handler_from_table:
 	ld a, (hl);							// get low byte of handler address
 	inc hl;								// advance to high byte
 	ld h, (hl);							// get high byte of handler address
 	ld l, a;							// restore low byte
-	call L0B6E;							// call memory restoration routine
+	call restore_memory_state;			// call memory restoration routine
 	ld ixh, a;							// save result in IXH
 	ld a, 0;							// clear accumulator
 	out (mmcram), a;					// divMMC RAM page 0;
@@ -2209,12 +2209,12 @@ L0B5A:
 	pop ix;								// restore IX register
 	ret;								// return to caller
 
-L0B6E:
+restore_memory_state:
 	push hl;							// save handler address
 	ld hl, ($3df4);						// restore saved HL register
 	ret;								// return with HL restored
 
-L0B73:
+handle_drive_table_op:
 	ld ixh, a;							// save operation type in IXH
 	ld hl, $2e22;						// point to drive table
 	add a, l;							// add operation offset
@@ -2227,21 +2227,21 @@ L0B73:
 	ret;								// return to caller
 
 	and a;								// test file system type
-	jr z, L0BB8;						// jump if standard file system
+	jr z, handle_standard_filesystem;	// jump if standard file system
 	ld b, a;							// save file system type
 	call find_handle_with_setup;		// call validation routine (04_files.asm)
-	jr nc, L0B8F;						// continue if valid
+	jr nc, validate_filesystem;			// continue if valid
 
-L0B8c:
+filesystem_error:
 	ld a, $0e;							// error code: invalid file system
 	ret;								// return with error
 
-L0B8F:
+validate_filesystem:
 	ld c, a;							// save validation result
 	ld a, b;							// restore file system type
 	and %00000111;						// mask lower 3 bits
 	cp c;								// compare with validation result
-	jr c, L0B8c;						// return error if invalid
+	jr c, filesystem_error;				// return error if invalid
 	push hl;							// save HL register
 	push iy;							// save IY register
 	pop hl;								// copy IY to HL
@@ -2259,28 +2259,28 @@ L0B8F:
 	add a, a;							// multiply by 8 (8-byte entries)
 	add a, l;							// add to source address
 	ld l, a;							// store calculated address
-	jr nc, L0BAF;						// continue if no carry
+	jr nc, process_filesystem_entry;	// continue if no carry
 	inc h;								// handle carry to high byte
 
-L0BAF:
+process_filesystem_entry:
 	ld bc, 4;							// copy 4 bytes
 	ldir;								// block copy HL to DE
 	ld c, 6;							// set result length
-	jr L0BFE;							// jump to completion
+	jr complete_buffer_operation;		// jump to completion
 
-L0BB8:
+handle_standard_filesystem:
 	push hl;							// save HL register
 	ld b, 6;							// process 6 file systems
 	ld hl, $2c00;						// point to file system table
 	ld de, $2df2;						// point to output buffer
 
-L0BC1:
+filesystem_table_loop:
 	push bc;							// save loop counter
 	push hl;							// save table pointer
 	ld a, (hl);							// get file system entry
 	inc hl;								// advance to next byte
 	and a;								// test if entry exists
-	jr z, L0BED;						// skip if no file system
+	jr z, advance_filesystem_ptr;		// skip if no file system
 	ld b, a;							// save file system type
 	and %11111000;						// mask high 5 bits
 	ld c, a;							// save masked value
@@ -2292,7 +2292,7 @@ L0BC1:
 	dec hl;								// return to file system entry
 	xor a;								// clear accumulator
 
-L0BD5:
+copy_filesystem_data:
 	push af;							// save entry index
 	or c;								// combine with file system type
 	ld (de), a;							// store in output buffer
@@ -2311,14 +2311,14 @@ L0BD5:
 	pop af;								// restore entry index
 	cp b;								// compare with maximum index
 	inc a;								// increment index
-	jr c, L0BD5;						// loop if more entries
+	jr c, copy_filesystem_data;			// loop if more entries
 
-L0BED:
+advance_filesystem_ptr:
 	pop hl;								// restore table pointer
 	ld bc, $28;							// each entry is 40 bytes
 	add hl, bc;							// advance to next file system entry
 	pop bc;								// restore loop counter
-	djnz L0BC1;							// loop through all file systems
+	djnz filesystem_table_loop;			// loop through all file systems
 	xor a;								// clear accumulator
 	ld (de), a;							// terminate buffer with zero
 	inc de;								// advance buffer pointer
@@ -2327,7 +2327,7 @@ L0BED:
 	ld b, h;							// copy high byte to B
 	ld c, l;							// copy low byte to C
 
-L0BFE:
+complete_buffer_operation:
 	ld hl, $2df2;						// point to data buffer
 	pop de;								// restore DE register
 	rst $30;							// call ROM routine (calculator)
@@ -2337,7 +2337,7 @@ L0BFE:
 ;;; 08_error.asm
 
 ;	// based on the Spectrum ROM's main_4 / main_g routine
-L0C06:
+error_handler_entry:
 	ld (err_nr), a;						// get error number
 	res 5, (iy + _flags);				// no new key
 	ld sp, (err_sp);					// error stack pointer to SP
@@ -2367,7 +2367,7 @@ L0C06:
 	jr z, L0C82;						// if no error, print default message
 	ld b, a;							// save error number in B
 
-L0C4d:
+handle_error_message:
 	ld a, ($3df9);						// get current divMMC page
 	push af;							// save current page
 	xor a;								// select page 0
@@ -2378,11 +2378,11 @@ L0C4d:
 	pop bc;								// restore error number
 	jr nc, L0C78;						// if message found, use it
 	cp $0c;								// check for specific error code
-	jr nz, L0C67;						// if not, try generic error
+	jr nz, handle_unknown_error;		// if not, try generic error
 	ld hl, $0caa;						// point to "Too many open files" message
 	jr L0C82;							// print message
 
-L0C67:
+handle_unknown_error:
 	ld a, b;							// get error number
 	cp 1;								// check if error number is 1
 	jr z, L0C78;						// if so, use BASIC ROM message
