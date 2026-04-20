@@ -4404,64 +4404,68 @@ L17AC:
 	ld (hl), a;							// clear cluster high byte
 	inc l;								// increment pointer
 	ld b, a;							// clear B register
-	ld c, b;							// 
-	ld d, c;							// 
-	ld e, d;							// 
-	rst $30;							// 
-	nop;								// 
-	push hl;							// 
-	call L17E7;							// 
-	pop hl;								// 
-	ret c;								// 
-	push hl;							// 
-	call L115C;							// 
-	ld hl, $3c1b;						// 
-	rst $30;							// 
-	nop;								// 
-	pop hl;								// 
-	or a;								// 
-	ret;								// 
+	ld c, b;							// clear C register
+	ld d, c;							// clear D register
+	ld e, d;							// clear E register (32-bit zero)
+	rst $30;							// call ROM calculator routine
+	nop;								// padding instruction
+	push hl;							// save directory entry pointer
+	call L17E7;							// call directory sector write function
+	pop hl;								// restore directory entry pointer
+	ret c;								// return if write failed
+	push hl;							// save entry pointer again
+	call L115C;							// call file descriptor function
+	ld hl, $3c1b;						// load file buffer address
+	rst $30;							// call ROM calculator routine
+	nop;								// padding instruction
+	pop hl;								// restore entry pointer
+	or a;								// clear carry flag (success)
+	ret;								// return from function
 
+; // file position reset function
 L17DB:
-	ld b, 0;							// 
-	ld c, b;							// 
-	ld d, c;							// 
-	ld e, d;							// 
-	call L1135;							// 
-	call L19D3;							// 
-	ret;								// 
+	ld b, 0;							// clear 32-bit file position
+	ld c, b;							// clear C register
+	ld d, c;							// clear D register
+	ld e, d;							// clear E register (position = 0)
+	call L1135;							// call file position validation
+	call L19D3;							// call file size store function
+	ret;								// return from position reset
 
+; // directory sector write function
 L17E7:
-	ld hl, $2600;						// 
-	call $313c;							// 
-	push af;							// 
-	xor a;								// 
-	ld ($3c26), a;						// 
-	pop af;								// 
-	ret;								// 
+	ld hl, $2600;						// load sector buffer address
+	call $313c;							// call sector write routine
+	push af;							// save write result flags
+	xor a;								// clear accumulator
+	ld ($3c26), a;						// clear sector modification flag
+	pop af;								// restore write result
+	ret;								// return with write status
 
+; // directory position calculation function
 L17F4:
-	ld hl, $2600;						// 
-	push hl;							// 
-	call L11FB;							// 
-	pop hl;								// 
-	ret c;								// 
+	ld hl, $2600;						// load sector buffer address
+	push hl;							// save buffer address
+	call L11FB;							// call directory sector read function
+	pop hl;								// restore buffer address
+	ret c;								// return if read failed
 
+; // directory entry sector calculation
 L17FD:
-	ld a, $10;							// 
-	sub (ix + 6);						// 
-	sla a;								// 
-	sla a;								// 
-	sla a;								// 
-	sla a;								// 
-	sla a;								// 
-	ld e, a;							// 
-	ld d, 0;							// 
-	rl d;								// 
-	add hl, de;							// 
-	ex de, hl;							// 
-	or a;								// 
-	ret;								// 
+	ld a, $10;							// load entries per sector (16)
+	sub (ix + 6);						// subtract drive number for offset
+	sla a;								// shift left (multiply by 2)
+	sla a;								// shift left (multiply by 4)
+	sla a;								// shift left (multiply by 8)
+	sla a;								// shift left (multiply by 16)
+	sla a;								// shift left (multiply by 32 bytes per entry)
+	ld e, a;							// store byte offset in E
+	ld d, 0;							// clear high byte
+	rl d;								// rotate carry into D for 16-bit offset
+	add hl, de;							// add offset to base address
+	ex de, hl;							// exchange DE and HL (result in DE)
+	or a;								// clear carry flag (success)
+	ret;								// return with calculated address
 
 L1815:
 	call L163E;							// 
@@ -4487,116 +4491,121 @@ L1815:
 	ld (ix + 0), 0;						// 
 	jp L172A;							// 
 
+; // file access and initialization function
 L184A:
-	ld a, ($3c01);						// 
-	push af;							// 
-	and %00000011;						// 
-	ld (ix + 1), a;						// 
-	call L115C;							// 
-	call L1A07;							// 
-	call L163E;							// 
-	call L18D0;							// 
-	ld l, (ix + 28);					// 
-	ld h, (ix + 29);					// 
-	ld de, $1c;							// 
-	add hl, de;							// 
-	call L1897;							// 
-	pop af;								// 
-	bit 6, a;							// 
-	jr z, $1894;						// 
-	ld hl, $2d00;						// 
-	ld bc, $80;							// 
-	call L1681;							// 
-	ret c;								// 
-	call L18B3;							// 
-	ld l, $0f;							// 
-	jr z, L188B;						// 
-	ld (ix + 15), 0;					// 
-	push hl;							// 
-	call L189E;							// 
-	pop hl;								// 
+	ld a, ($3c01);						// load file access mode flags
+	push af;							// save access flags
+	and %00000011;						// mask to get access mode (read/write)
+	ld (ix + 1), a;						// store access mode in file descriptor
+	call L115C;							// call file descriptor setup
+	call L1A07;							// call file validation function
+	call L163E;							// call directory setup
+	call L18D0;							// call file position initialization
+	ld l, (ix + 28);					// load directory entry pointer low
+	ld h, (ix + 29);					// load directory entry pointer highload directory entry pointer high
+	ld de, $1c;							// load offset to file data area (28 bytes)
+	add hl, de;							// add offset to get data pointer
+	call L1897;							// call file processing function
+	pop af;								// restore access flags
+	bit 6, a;							// test write access bit
+	jr z, $1894;						// jump if read-only access
+	ld hl, $2d00;						// load buffer address for write mode
+	ld bc, $80;							// load buffer size (128 bytes)
+	call L1681;							// call buffer allocation function
+	ret c;								// return if allocation failed
+	call L18B3;							// call filename validation
+	ld l, $0f;							// load file attribute mask
+	jr z, L188B;						// jump if validation passed
+	ld (ix + 15), 0;					// clear file handle
+	push hl;							// save attribute mask
+	call L189E;							// call file buffer initialization
+	pop hl;								// restore attribute mask
 
 L188B:
-	ld de, ($3c23);						// 
-	ld bc, 8;							// 
-	rst $30;							// 
-	ld b, $c3;							// 
-	ld h, a;							// 
-	rla;								// 
+	ld de, ($3c23);						// load file attribute data address
+	ld bc, 8;							// load attribute data length
+	rst $30;							// call ROM memory copy routine
+	ld b, $c3;							// load file completion marker
+	ld h, a;							// store completion status
+	rla;								// rotate left for status check
 
+; // file processing and validation function
 L1897:
-	rst $30;							// 
-	ld bc, $d3cd;						// 
-	add hl, de;							// 
-	or a;								// 
-	ret;								// 
+	rst $30;							// call ROM calculator routine
+	ld bc, $d3cd;						// load function code for file processing
+	add hl, de;							// add offset to file pointer
+	or a;								// clear carry flag (success)
+	ret;								// return from function
 
+; // file buffer initialization function
 L189E:
-	push af;							// 
-	ld a, $ff;							// 
-	ld (hl), a;							// 
-	inc l;								// 
-	call L19E0;							// 
-	ld (hl), e;							// 
-	inc l;								// 
-	ld (hl), d;							// 
-	inc l;								// 
-	ld b, 5;							// 
-	xor a;								// 
+	push af;							// save accumulator flags
+	ld a, $ff;							// load file marker value (empty)
+	ld (hl), a;							// store marker in buffer
+	inc l;								// increment buffer pointer
+	call L19E0;							// call cluster address calculation
+	ld (hl), e;							// store cluster address low byte
+	inc l;								// increment pointer
+	ld (hl), d;							// store cluster address high byte
+	inc l;								// increment pointer
+	ld b, 5;							// load loop counter (5 bytes)
+	xor a;								// clear accumulator
 
 L18AD:
-	ld (hl), a;							// 
-	inc l;								// 
-	djnz L18AD;							// 
-	pop af;								// 
-	ret;								// 
+	ld (hl), a;							// clear buffer byte
+	inc l;								// increment pointer
+	djnz L18AD;							// decrement B and loop if not zero
+	pop af;								// restore accumulator flags
+	ret;								// return from initialization
 
+; // filename validation and checksum function
 L18B3:
-	push hl;							// 
-	ld de, $40;							// 
-	ld bc, 9;							// 
+	push hl;							// save filename pointer
+	ld de, $40;							// load comparison buffer address
+	ld bc, 9;							// load filename length (8.3 format)
 
 L18BA:
-	ld a, (de);							// 
-	cpi;								// 
-	jr nz, L18C3;						// 
-	inc de;								// 
-	jp pe, L18BA;						// 
+	ld a, (de);							// load byte from comparison buffer
+	cpi;								// compare with filename and increment
+	jr nz, L18C3;						// jump if no match
+	inc de;								// increment comparison pointer
+	jp pe, L18BA;						// jump if more bytes to compare
 
 L18C3:
-	pop hl;								// 
-	ret nz;								// 
-	ld c, $7f;							// 
-	xor a;								// 
+	pop hl;								// restore filename pointer
+	ret nz;								// return if filename doesn't match
+	ld c, $7f;							// load checksum mask value
+	xor a;								// clear accumulator for checksum
 
 L18C8:
-	add a, (hl);						// 
-	cpi;								// 
-	jp pe, L18C8;						// 
-	cp (hl);							// 
-	ret;								// 
+	add a, (hl);						// add filename byte to checksum
+	cpi;								// increment pointer and compare
+	jp pe, L18C8;						// loop if more bytes to process
+	cp (hl);							// compare calculated checksum
+	ret;								// return with comparison result
 
+; // file position initialization function
 L18D0:
-	call L19ED;							// 
-	call L12A6;							// 
-	ld b, 0;							// 
-	ld c, b;							// 
-	ld d, c;							// 
-	ld e, d;							// 
-	jp L19B9;							// 
-	bit 0, (ix + 1);					// 
-	ld a, 8;							// 
-	scf;								// 
-	ret z;								// 
-	push hl;							// 
-	call L1989;							// 
-	pop hl;								// 
-	ld a, c;							// 
-	or b;								// 
-	ret z;								// 
+	call L19ED;							// call file size validation
+	call L12A6;							// call cluster chain setup
+	ld b, 0;							// clear 32-bit file position
+	ld c, b;							// clear C register
+	ld d, c;							// clear D register
+	ld e, d;							// clear E register (position = 0)
+	jp L19B9;							// jump to cluster update function
+	bit 0, (ix + 1);					// test file access mode bit
+	ld a, 8;							// load error code (invalid access)
+	scf;								// set carry flag (error condition)
+	ret z;								// return error if access mode is zero
+	push hl;							// save buffer pointer
+	call L1989;							// call file size calculation
+	pop hl;								// restore buffer pointer
+	ld a, c;							// load size low byte
+	or b;								// combine with high byte
+	ret z;								// return if size is zero
 
 L18EE:
-	res 2, (ix + 1);					// 
+	res 2, (ix + 1);					// clear file modification bit
 
 L18F2:
 	push bc;							// 
@@ -4608,87 +4617,89 @@ L18F3:
 	ld d, a;							// 
 	call L1934;							// 
 	jr c, L1929;						// 
-	push bc;							// 
-	push hl;							// 
-	ld hl, $0200;						// 
-	sbc hl, de;							// 
-	ex de, hl;							// 
-	ld h, b;							// 
-	ld l, c;							// 
-	sbc hl, de;							// 
-	jr c, L1911;						// 
-	ld b, d;							// 
-	ld c, e;							// 
+	push bc;							// save byte count
+	push hl;							// save buffer pointer
+	ld hl, $0200;						// load sector size (512 bytes)
+	sbc hl, de;							// calculate remaining space in sector
+	ex de, hl;							// exchange HL and DE
+	ld h, b;							// load byte count high byte
+	ld l, c;							// load byte count low byte
+	sbc hl, de;							// subtract available space
+	jr c, L1911;						// jump if all bytes fit in sector
+	ld b, d;							// limit to available space
+	ld c, e;							// store limited byte count
 
 L1911:
-	pop hl;								// 
-	push bc;							// 
-	call L1945;							// 
-	pop de;								// 
-	pop bc;								// 
-	jr c, L1929;						// 
-	ld a, c;							// 
-	sub e;								// 
-	ld c, a;							// 
-	ld a, b;							// 
-	sbc a, d;							// 
-	ld b, a;							// 
-	or c;								// 
-	ex de, hl;							// 
-	call L19AB;							// 
-	ex de, hl;							// 
-	jr nz, L18F3;						// 
-	or a;								// 
+	pop hl;								// restore buffer pointer
+	push bc;							// save processed byte count
+	call L1945;							// call sector I/O operation
+	pop de;								// restore processed count in DE
+	pop bc;								// restore original byte count
+	jr c, L1929;						// jump to cleanup if I/O failed
+	ld a, c;							// load original count low
+	sub e;								// subtract processed count
+	ld c, a;							// store remaining count
+	ld a, b;							// load original count high
+	sbc a, d;							// subtract processed count with borrow
+	ld b, a;							// store remaining count
+	or c;								// check if any bytes remain
+	ex de, hl;							// exchange buffer pointers
+	call L19AB;							// call buffer position update
+	ex de, hl;							// restore buffer pointers
+	jr nz, L18F3;						// loop if more bytes to process
+	or a;								// clear carry (success)
 
 L1929:
-	pop de;								// 
-	push af;							// 
-	ex de, hl;							// 
-	or a;								// 
-	sbc hl, bc;							// 
-	ld b, h;							// 
-	ld c, l;							// 
-	ex de, hl;							// 
-	pop af;								// 
-	ret;								// 
+	pop de;								// restore stack balance
+	push af;							// save error flags
+	ex de, hl;							// exchange pointers
+	or a;								// clear carry for subtraction
+	sbc hl, bc;							// calculate bytes transferred
+	ld b, h;							// store transferred count
+	ld c, l;							// in BC register pair
+	ex de, hl;							// restore pointers
+	pop af;								// restore error flags
+	ret;								// return with transfer status
 
 L1934:
-	or e;								// 
-	ret nz;								// 
-	push de;							// 
-	push bc;							// 
-	push hl;							// 
-	call L19C6;							// 
-	rst $30;							// 
-	dec c;								// 
-	call nz, L1250;						// 
-	pop hl;								// 
-	pop bc;								// 
-	pop de;								// 
-	ret;								// 
+	or e;								// check if E register is non-zero
+	ret nz;								// return if E is not zero
+	push de;							// save DE register pair
+	push bc;							// save BC register pair
+	push hl;							// save HL register pair
+	call L19C6;							// call file position load function
+	rst $30;							// call ROM calculator routine
+	dec c;								// decrement C register
+	call nz, L1250;						// call function if C not zero
+	pop hl;								// restore HL register pair
+	pop bc;								// restore BC register pair
+	pop de;								// restore DE register pair
+	ret;								// return from function
 
+; // sector I/O dispatch function
 L1945:
-	ld a, b;							// 
-	sub 2;								// 
-	or c;								// 
-	jr nz, L195c;						// 
-	bit 2, (ix + 1);					// 
-	jp nz, L1342;						// 
-	bit 5, (ix + 1);					// 
-	jp nz, L11FB;						// 
-	jp L1235;							// 
+	ld a, b;							// load byte count high
+	sub 2;								// subtract 2 (512 bytes = 2x256)
+	or c;								// combine with low byte
+	jr nz, L195c;						// jump if not exactly 512 bytes
+	bit 2, (ix + 1);					// test write mode bit
+	jp nz, L1342;						// jump to write function if set
+	bit 5, (ix + 1);					// test read mode bit
+	jp nz, L11FB;						// jump to read function if set
+	jp L1235;							// jump to default I/O function
 
+; // partial sector I/O function
 L195c:
-	push bc;							// 
-	push hl;							// 
-	call L1202;							// 
-	pop de;								// 
-	pop bc;								// 
-	ret c;								// 
-	ld l, (ix + 15);					// 
-	ld a, (ix + 16);					// 
-	and %00000001;						// 
-	add a, h;							// 
+	push bc;							// save byte count
+	push hl;							// save buffer pointer
+	call L1202;							// call sector buffer setup
+	pop de;								// restore buffer as destination
+	pop bc;								// restore byte count
+	ret c;								// return if setup failed
+	ld l, (ix + 15);					// load file position low
+	ld a, (ix + 16);					// load file position byte 2
+	and %00000001;						// mask to get sector offset bit
+	add a, h;							// add to buffer high address
 	ld h, a;							// 
 	bit 2, (ix + 1);					// 
 	jr nz, L1983;						// 
@@ -4738,155 +4749,165 @@ L19AB:
 	push bc;							// 
 	call L19C6;							// 
 	call L0831;							// 
-	call L19B9;							// 
-	pop bc;								// 
-	pop de;								// 
-	ret;								// 
+	call L19B9;							// call file position store function
+	pop bc;								// restore BC register pair
+	pop de;								// restore DE register pair
+	ret;								// return from function
 
+; // store 32-bit file position (DEBC -> file descriptor)
 L19B9:
-	ld (ix + 15), e;					// 
-	ld (ix + 16), d;					// 
-	ld (ix + 17), c;					// 
-	ld (ix + 18), b;					// 
-	ret;								// 
+	ld (ix + 15), e;					// store file position byte 0 (low)
+	ld (ix + 16), d;					// store file position byte 1
+	ld (ix + 17), c;					// store file position byte 2
+	ld (ix + 18), b;					// store file position byte 3 (high)
+	ret;								// return from position store
 
+; // load 32-bit file position (file descriptor -> DEBC)
 L19C6:
-	ld e, (ix + 15);					// 
-	ld d, (ix + 16);					// 
-	ld c, (ix + 17);					// 
-	ld b, (ix + 18);					// 
-	ret;								// 
+	ld e, (ix + 15);					// load file position byte 0 (low)
+	ld d, (ix + 16);					// load file position byte 1
+	ld c, (ix + 17);					// load file position byte 2
+	ld b, (ix + 18);					// load file position byte 3 (high)
+	ret;								// return with position in DEBC
 
+; // store 32-bit file size (DEBC -> file descriptor)
 L19D3:
-	ld (ix + 11), e;					// 
-	ld (ix + 12), d;					// 
-	ld (ix + 13), c;					// 
-	ld (ix + 14), b;					// 
-	ret;								// 
+	ld (ix + 11), e;					// store file size byte 0 (low)
+	ld (ix + 12), d;					// store file size byte 1
+	ld (ix + 13), c;					// store file size byte 2
+	ld (ix + 14), b;					// store file size byte 3 (high)
+	ret;								// return from size store
 
+; // load 32-bit file size (file descriptor -> DEBC)
 L19E0:
-	ld e, (ix + 11);					// 
-	ld d, (ix + 12);					// 
-	ld c, (ix + 13);					// 
-	ld b, (ix + 14);					// 
-	ret;								// 
+	ld e, (ix + 11);					// load file size byte 0 (low)
+	ld d, (ix + 12);					// load file size byte 1
+	ld c, (ix + 13);					// load file size byte 2
+	ld b, (ix + 14);					// load file size byte 3 (high)
+	ret;								// return with size in DEBC
 
+; // store 32-bit cluster address (DEBC -> file descriptor)
 L19ED:
-	ld (ix + 7), e;						// 
-	ld (ix + 8), d;						// 
-	ld (ix + 9), c;						// 
-	ld (ix + 10), b;					// 
-	ret;								// 
+	ld (ix + 7), e;						// store cluster address byte 0 (low)
+	ld (ix + 8), d;						// store cluster address byte 1
+	ld (ix + 9), c;						// store cluster address byte 2
+	ld (ix + 10), b;					// store cluster address byte 3 (high)
+	ret;								// return from cluster store
 
+; // load 32-bit cluster address (file descriptor -> DEBC)
 L19FA:
-	ld e, (ix + 7);						// 
-	ld d, (ix + 8);						// 
-	ld c, (ix + 9);						// 
-	ld b, (ix + 10);					// 
-	ret;								// 
+	ld e, (ix + 7);						// load cluster address byte 0 (low)
+	ld d, (ix + 8);						// load cluster address byte 1
+	ld c, (ix + 9);						// load cluster address byte 2
+	ld b, (ix + 10);					// load cluster address byte 3 (high)
+	ret;								// return with cluster in DEBC
 
+; // store 32-bit directory cluster (DEBC -> file descriptor)
 L1A07:
-	ld (ix + 2), e;						// 
-	ld (ix + 3), d;						// 
-	ld (ix + 4), c;						// 
-	ld (ix + 5), b;						// 
-	ret;								// 
+	ld (ix + 2), e;						// store directory cluster byte 0 (low)
+	ld (ix + 3), d;						// store directory cluster byte 1
+	ld (ix + 4), c;						// store directory cluster byte 2
+	ld (ix + 5), b;						// store directory cluster byte 3 (high)
+	ret;								// return from directory store
 
+; // load 32-bit directory cluster (file descriptor -> DEBC)
 L1A14:
-	ld e, (ix + 2);						// 
-	ld d, (ix + 3);						// 
-	ld c, (ix + 4);						// 
-	ld b, (ix + 5);						// 
-	ret;								// 
+	ld e, (ix + 2);						// load directory cluster byte 0 (low)
+	ld d, (ix + 3);						// load directory cluster byte 1
+	ld c, (ix + 4);						// load directory cluster byte 2
+	ld b, (ix + 5);						// load directory cluster byte 3 (high)
+	ret;								// return with directory cluster in DEBC
 
+; // file descriptor cleanup and validation function
 L1A21:
-	push bc;							// 
-	push de;							// 
-	ld hl, $2420;						// 
-	ld b, $0f;							// 
+	push bc;							// save BC register pair
+	push de;							// save DE register pair
+	ld hl, $2420;						// load file descriptor table address
+	ld b, $0f;							// load loop counter (15 descriptors)
 
 L1A28:
-	ld a, (hl);							// 
-	and a;								// 
-	jr z, L1A39;						// 
-	ld a, ixh;							// 
-	cp h;								// 
-	jr nz, L1A36;						// 
-	ld a, ixl;							// 
-	cp l;								// 
-	jr z, L1A39;						// 
+	ld a, (hl);							// load descriptor status byte
+	and a;								// test if descriptor is active
+	jr z, L1A39;						// jump if descriptor is inactive
+	ld a, ixh;							// load current descriptor high byte
+	cp h;								// compare with table entry high
+	jr nz, L1A36;						// jump if different descriptor
+	ld a, ixl;							// load current descriptor low byte
+	cp l;								// compare with table entry low
+	jr z, L1A39;						// jump if same descriptor (skip cleanup)
 
 L1A36:
-	call L1A43;							// 
+	call L1A43;							// call descriptor validation function
 
 L1A39:
-	ld de, $20;							// 
-	add hl, de;							// 
-	djnz L1A28;							// 
-	pop de;								// 
-	pop bc;								// 
-	or a;								// 
-	ret;								// 
+	ld de, $20;							// load descriptor size (32 bytes)
+	add hl, de;							// advance to next descriptor
+	djnz L1A28;							// decrement counter and loop
+	pop de;								// restore DE register pair
+	pop bc;								// restore BC register pair
+	or a;								// clear carry flag (success)
+	ret;								// return from cleanup function
 
+; // file descriptor validation and comparison function
 L1A43:
-	ld a, (hl);							// 
-	cp (ix + 00);						// 
-	ret nz;								// 
-	push hl;							// 
-	ld a, 6;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	ld a, (hl);							// 
-	cp (ix + 6);						// 
-	pop hl;								// 
-	ret nz;								// 
-	push bc;							// 
-	push hl;							// 
-	ld a, 5;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	call L1A14;							// 
-	call L0694;							// 
-	call z, restart_28;					// 
-	pop hl;								// 
-	pop bc;								// 
-	ret;								// 
+	ld a, (hl);							// load descriptor status byte
+	cp (ix + 00);						// compare with current descriptor status
+	ret nz;								// return if status doesn't match
+	push hl;							// save descriptor pointer
+	ld a, 6;							// load offset to drive number
+	add a, l;							// add to pointer low byte
+	ld l, a;							// store updated pointer
+	ld a, (hl);							// load drive number from descriptor
+	cp (ix + 6);						// compare with current drive number
+	pop hl;								// restore descriptor pointer
+	ret nz;								// return if drive doesn't match
+	push bc;							// save BC register pair
+	push hl;							// save descriptor pointer
+	ld a, 5;							// load offset to comparison data
+	add a, l;							// add to pointer
+	ld l, a;							// store updated pointer
+	call L1A14;							// call directory cluster load
+	call L0694;							// call cluster comparison function
+	call z, restart_28;					// call restart if clusters match
+	pop hl;								// restore descriptor pointer
+	pop bc;								// restore BC register pair
+	ret;								// return from validation
 
-	pop hl;								// 
-	pop hl;								// 
-	pop hl;								// 
-	pop hl;								// 
-	pop de;								// 
-	pop bc;								// 
-	scf;								// 
-	ret;								// 
+	pop hl;								// restore stack balance
+	pop hl;								// restore stack balance
+	pop hl;								// restore stack balance
+	pop hl;								// restore stack balance
+	pop de;								// restore DE register pair
+	pop bc;								// restore BC register pair
+	scf;								// set carry flag (error condition)
+	ret;								// return with error
 
-	dec l;								// 
-	dec l;								// 
-	dec l;								// 
-	res 4, (hl);						// 
-	ld a, $0a;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	call L19E0;							// 
-	jp L06A9;							// 
-	dec l;								// 
-	dec l;								// 
-	dec l;								// 
-	set 4, (hl);						// 
-	res 3, (hl);						// 
-	ld a, 6;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	ex de, hl;							// 
-	push ix;							// 
-	pop hl;								// 
-	ld a, 7;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	ld bc, L0015;						// 
-	ldir;								// 
-	ret;								// 
+	dec l;								// decrement pointer to status field
+	dec l;								// decrement pointer further
+	dec l;								// position at file flags
+	res 4, (hl);						// clear bit 4 (file closed flag)
+	ld a, $0a;							// load offset to size field (10)
+	add a, l;							// add to pointer
+	ld l, a;							// store updated pointer
+	call L19E0;							// call file size load function
+	jp L06A9;							// jump to completion routine
+	dec l;								// decrement pointer to status field
+	dec l;								// decrement pointer further
+	dec l;								// position at file flags
+	set 4, (hl);						// set bit 4 (file active flag)
+	res 3, (hl);						// clear bit 3 (directory flag)
+	ld a, 6;							// load offset to drive field (6)
+	add a, l;							// add to pointer
+	ld l, a;							// store updated pointer
+	ex de, hl;							// exchange DE and HL
+	push ix;							// save IX register
+	pop hl;								// load IX into HL
+	ld a, 7;							// load offset to data area (7)
+	add a, l;							// add to pointer
+	ld l, a;							// store updated pointer
+	ld bc, L0015;						// load data length (21 bytes)
+	ldir;								// copy data from source to destination
+	ret;								// return from data copy
 
 	dec d;								// 
 	dec h;								// 
@@ -4926,88 +4947,93 @@ L1A43:
 	rst $08;							// 
 	defb f_sync;						// 
 	pop af;								// 
-	jr L1AE6;							// 
-	call L1B13;							// 
-	ld a, ixl;							// 
+	jr L1AE6;							// jump to result handling
+	call L1B13;							// call block size calculation
+	ld a, ixl;							// load RAM page number
 	out (mmcram), a;					// Set divMMC RAM page...
-	ld a, ($3df8);						// 
-	ld ixh, a;							// 
-	xor a;								// 
+	ld a, ($3df8);						// load saved page number
+	ld ixh, a;							// store in IXH for later
+	xor a;								// clear accumulator
 	out (mmcram), a;					// divMMC RAM page 0
-	call L1AF4;							// 
-	ret c;								// 
-	ld e, (iy + _newppc);				// 
-	ld a, ixl;							// 
+	call L1AF4;							// call file seek function
+	ret c;								// return if seek failed
+	ld e, (iy + _newppc);				// load file handle
+	ld a, ixl;							// load RAM page number
 	out (mmcram), a;					// Set divMMC RAM page...
-	ld a, e;							// 
-	rst $08;							// 
-	defb f_read;						// 
+	ld a, e;							// load file handle
+	rst $08;							// call esxDOS API
+	defb f_read;						// read from file
 
+; // file I/O result handling function
 L1AE6:
-	ld iyl, a;							// 
+	ld iyl, a;							// store result code in IYL
 
+; // restore divMMC page and return result
 L1AE8:
-	ld a, ixh;							// 
-	ld ($3df8), a;						// 
-	ld a, 0;							// 
+	ld a, ixh;							// load saved page number
+	ld ($3df8), a;						// restore saved page variable
+	ld a, 0;							// clear accumulator
 	out (mmcram), a;					// divMMC RAM page 0
-	ld a, iyl;							// 
-	ret;								// 
+	ld a, iyl;							// load result code
+	ret;								// return with result
 
+; // file seek preparation function
 L1AF4:
-	ld a, (iy + _newppc);				// 
-	push hl;							// 
-	ld l, 0;							// 
-	rst $08;							// 
-	defb f_seek;						// 
-	pop hl;								// 
-	ret c;								// 
-	push hl;							// 
-	ld hl, $80;							// 
-	ld a, (iy + _flags);				// 
-	and %00000111;						// 
-	dec a;								// 
-	jr z, L1B0E;						// 
+	ld a, (iy + _newppc);				// load file handle
+	push hl;							// save HL register
+	ld l, 0;							// clear L (seek mode = absolute)
+	rst $08;							// call esxDOS API
+	defb f_seek;						// seek to file position
+	pop hl;								// restore HL register
+	ret c;								// return if seek failed
+	push hl;							// save HL register
+	ld hl, $80;							// load base block size (128 bytes)
+	ld a, (iy + _flags);				// load file flags
+	and %00000111;						// mask to get block size bits
+	dec a;								// decrement (0 = 128 bytes)
+	jr z, L1B0E;						// jump if 128 byte blocks
 
 L1B0A:
-	add hl, hl;							// 
-	dec a;								// 
-	jr nz, L1B0A;						// 
+	add hl, hl;							// double the block size (left shift)
+	dec a;								// decrement size counter
+	jr nz, L1B0A;						// loop until correct block size
 
 L1B0E:
-	ld b, h;							// 
-	ld c, l;							// 
-	pop hl;								// 
-	or a;								// 
-	ret;								// 
+	ld b, h;							// store block size high byte
+	ld c, l;							// store block size low byte
+	pop hl;								// restore HL register
+	or a;								// clear carry flag (success)
+	ret;								// return with block size in BC
 
+; // block size calculation with sector scaling
 L1B13:
-	call L1B29;							// 
-	ld a, (iy + _flags);				// 
-	and %00000111;						// 
-	dec a;								// 
-	ret z;								// 
+	call L1B29;							// call sector-based scaling function
+	ld a, (iy + _flags);				// load file flags
+	and %00000111;						// mask to get block size bits
+	dec a;								// decrement (0 = base size)
+	ret z;								// return if base size (128 bytes)
 
 L1B1D:
-	sla e;								// 
-	rl d;								// 
-	rl c;								// 
-	rl b;								// 
-	dec a;								// 
-	jr nz, L1B1D;						// 
-	ret;								// 
+	sla e;								// shift E left (multiply by 2)
+	rl d;								// rotate D left with carry
+	rl c;								// rotate C left with carry
+	rl b;								// rotate B left with carry (32-bit left shift)
+	dec a;								// decrement scaling counter
+	jr nz, L1B1D;						// loop until scaling complete
+	ret;								// return with scaled value
 
+; // sector-based scaling function (multiply by 128)
 L1B29:
-	ld a, 7;							// 
+	ld a, 7;							// load shift count (2^7 = 128)
 
 L1B2B:
-	sla e;								// 
-	rl d;								// 
-	rl c;								// 
-	rl b;								// 
-	dec a;								// 
-	jr nz, L1B2B;						// 
-	ret;								// 
+	sla e;								// shift E left (multiply by 2)
+	rl d;								// rotate D left with carry
+	rl c;								// rotate C left with carry
+	rl b;								// rotate B left with carry (32-bit left shift)
+	dec a;								// decrement shift counter
+	jr nz, L1B2B;						// loop until 7 shifts complete
+	ret;								// return with value multiplied by 128
 
 ;;; data.asm
 
