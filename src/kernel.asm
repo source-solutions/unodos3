@@ -5115,7 +5115,7 @@ L1B2B:
 	jr nz, L1B2B;						// loop until 7 shifts complete
 	ret;								// return with value multiplied by 128
 
-;;; data.asm
+;;; 11_data.asm
 
 	org $1b37
 copyright:
@@ -5285,7 +5285,7 @@ sys_filename:
 	defm "unodos";						// UNODOS.SYS filename
 	defb 0;								// end marker
 
-;;; spi.asm
+;;; 12_spi.asm
 
 L1C5F:
 	ld l, l;							// SPI data table entry
@@ -5841,7 +5841,7 @@ get_rom_byte:
 	ld a, ($3200);						// read byte at $3200 in current ROM
 	ret;								// return with byte in A register
 
-;;; vector.asm
+;;; 14_vector.asm
 
 ;	// vector table for 'dot' commands
 	org $1FCA
@@ -5898,7 +5898,7 @@ L1FFB:
 	rst $38;							// mask interrupt (filler)
 	rst $38;							// mask interrupt (filler)
 
-;;; basic.asm
+;;; 15_basic.asm
 
 ;	// UNODOS.SYS starts here
 	org $2000
