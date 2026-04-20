@@ -4199,44 +4199,46 @@ L1697:
 
 L1699 equ $1699
 
-	bit 3, (ix + 1);					// 
-	jp z, L10F3;						// 
-	call L16CB;							// 
-	ret c;								// 
-	ld de, $14;							// 
-	add hl, de;							// 
-	call L19FA;							// 
-	ld (hl), c;							// 
-	inc hl;								// 
-	ld (hl), b;							// 
-	inc hl;								// 
-	inc hl;								// 
-	inc hl;								// 
-	inc hl;								// 
-	inc hl;								// 
-	ld (hl), e;							// 
-	inc hl;								// 
-	ld (hl), d;							// 
-	inc hl;								// 
-	call L19E0;							// 
-	rst $30;							// 
-	nop;								// 
-	call L17E7;							// 
+	bit 3, (ix + 1);					// check if directory operation flag set
+	jp z, L10F3;						// jump to cleanup if not directory
+	call L16CB;							// call directory update function
+	ret c;								// return if update failed
+	ld de, $14;							// load offset to directory entry data
+	add hl, de;							// add offset to HL
+	call L19FA;							// call file position function
+	ld (hl), c;							// store low byte of position
+	inc hl;								// increment to next byte
+	ld (hl), b;							// store high byte of position
+	inc hl;								// skip to next field
+	inc hl;								// skip reserved bytes
+	inc hl;								// continue skipping
+	inc hl;								// skip more reserved bytes
+	inc hl;								// advance to size field
+	ld (hl), e;							// store size low byte
+	inc hl;								// increment to next byte
+	ld (hl), d;							// store size high byte
+	inc hl;								// increment pointer
+	call L19E0;							// call file size function
+	rst $30;							// call system function
+	nop;								// no operation
+	call L17E7;							// call directory write function
 
+; // error handling and buffer management function
 L16BE:
-	push af;							// 
-	ld hl, $3c1b;						// 
-	rst $30;							// 
-	ld bc, $4fcd;						// 
-	ld de, $c3f1;						// 
+	push af;							// save accumulator and flags
+	ld hl, $3c1b;						// load buffer management address
+	rst $30;							// call system function
+	ld bc, $4fcd;						// load error recovery parameters
+	ld de, $c3f1;						// load jump instruction pattern
 	di;									// interrupts off
 
+; // directory update processing function
 L16CB equ $16cb
 
-	djnz L1699;							// 
-	ld e, h;							// 
-	ld de, $1b21;						// 
-	inc a;								// 
+	djnz L1699;							// loop back to file flush if B register not zero
+	ld e, h;							// copy H to E register
+	ld de, $1b21;						// load directory operation code
+	inc a;								// increment accumulator
 ; // continue directory processing after error recovery
 	rst $30;							// call system function
 	nop;								// no operation
@@ -5929,7 +5931,7 @@ L20DF:
 	im 1;								// set interrupt mode 1
 	ei;									// enable interrupts
 	halt;								// wait for interrupt
-	di;									// disable interrupts
+	di;									// interrupts off
 	ld a, ($2e67);						// get memory page
 	ld bc, $7ffd;						// 128 paging register
 	out (c), a;							// set memory page
@@ -6267,7 +6269,7 @@ L22C7:
 ; Function: Complete error handling and system cleanup
 L22D8:
 	ld ($223b), de;						// store message pointer
-	di;									// disable interrupts
+	di;									// interrupts off
 	call L00EF;							// call system function
 	ld hl, $5b00;						// ZX printer buffer start
 	ld d, h;							// copy H to D
