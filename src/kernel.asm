@@ -4467,29 +4467,30 @@ L17FD:
 	or a;								// clear carry flag (success)
 	ret;								// return with calculated address
 
+; // directory creation and initialization function
 L1815:
-	call L163E;							// 
-	push bc;							// 
-	push de;							// 
-	ld l, (ix + 28);					// 
-	ld h, (ix + 29);					// 
-	ld de, $0c;							// 
-	add hl, de;							// 
-	call L17AC;							// 
-	pop de;								// 
-	pop bc;								// 
-	ret c;								// 
-	call $3108;							// 
-	call nc, L10F3;						// 
-	ret c;								// 
-	call L17DB;							// 
-	call L19B9;							// 
-	call L1773;							// 
-	ld hl, $1a7c;						// 
-	ld ($3dee), hl;						// 
-	call L1A21;							// 
-	ld (ix + 0), 0;						// 
-	jp L172A;							// 
+	call L163E;							// call directory setup function
+	push bc;							// save BC register pair
+	push de;							// save DE register pair
+	ld l, (ix + 28);					// load directory entry pointer low
+	ld h, (ix + 29);					// load directory entry pointer high
+	ld de, $0c;							// load offset to file size field (12 bytes)
+	add hl, de;							// add offset to pointer
+	call L17AC;							// call file size write function
+	pop de;								// restore DE register pair
+	pop bc;								// restore BC register pair
+	ret c;								// return if size write failed
+	call $3108;							// call system function
+	call nc, L10F3;						// call directory update if no error
+	ret c;								// return if update failed
+	call L17DB;							// call file position reset
+	call L19B9;							// call cluster chain update
+	call L1773;							// call directory finalize function
+	ld hl, $1a7c;						// load function vector address
+	ld ($3dee), hl;						// store function vector
+	call L1A21;							// call directory completion function
+	ld (ix + 0), 0;						// clear file status byte
+	jp L172A;							// jump to completion routine
 
 ; // file access and initialization function
 L184A:
