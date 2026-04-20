@@ -2600,7 +2600,6 @@ memory_cleanup_with_hl:
 
 ; // cleanup and restore divMMC memory page
 cleanup_restore_page:
-L0DC2:
 	push af;							// save accumulator flags
 	ld a, 0;							// select divMMC page 0
 	out (mmcram), a;					// divMMC RAM page 0
@@ -2611,7 +2610,6 @@ L0DC2:
 
 ; // read file data to page 2 and close file
 read_file_to_page2:
-L0DCF:
 	ld b, a;							// save file handle in B
 	ld a, 2;							// select divMMC page 2
 	out (mmcram), a;					// divMMC RAM page 0
@@ -2636,8 +2634,7 @@ L0DCF:
 ;;; 10_utils.asm
 
 ; // open screen channel for output
-open_screen_channel:
-L0DEB:;									// called from dirs.io
+open_screen_channel:;							// called from dirs.io
 	ld a, 2;							// screen
 	rst $18;							// call BASIC ROM routine
 	defw chan_open;						// open channel function
@@ -2645,7 +2642,6 @@ L0DEB:;									// called from dirs.io
 
 ; // data area or function parameters
 data_area_parameters:
-L0DF1:
 	ld d, (hl);							// load D from address pointed by HL
 	ld c, $b2;							// load immediate value $B2 into C
 	ld sp, $16de;						// set stack pointer to $16DE
@@ -2696,7 +2692,6 @@ L0DF1:
 
 ; // format output routine with parameters
 format_output_routine:
-L0E40:
 	ld b, $2e;							// load immediate value $2E into B
 	inc b;								// increment B register
 	rst $30;							// restart at vector $30
@@ -2710,7 +2705,6 @@ L0E40:
 
 ; // output byte to file handle
 output_byte_to_file:
-L0E4C:
 	ld hl, $3dfa;						// load HL with address $3DFA
 	ld (hl), a;							// store A at address HL
 	ld bc, 1;							// load BC with value 1
@@ -2735,13 +2729,11 @@ L0E4C:
 
 ; // search for free memory block
 search_free_memory:
-L0E6D:
 	ld hl, $2000;						// load HL with address $2000
 	ld b, 4;							// load B with counter value 4
 
 ; // memory search loop continuation
 memory_search_loop:
-L0E72:
 	ld a, (hl);							// load A with value at address HL
 	and a;								// test A (check if zero)
 	ret z;								// return if zero
@@ -2752,7 +2744,6 @@ L0E72:
 
 ; // clear error and set carry flag
 clear_error_set_carry:
-L0E7A:
 	xor a;								// clear A register (set to 0)
 	ld (iy + _err_nr), a;				// clear error number in IY
 	scf;								// set carry flag
@@ -2760,7 +2751,6 @@ L0E7A:
 
 ; // validate file system structure and data
 validate_fs_structure:
-L0E80:
 	ld hl, $2d00;						// load HL with address $2D00
 	ld bc, 0;							// clear BC register pair
 	ld de, 0;							// clear DE register pair
@@ -2801,7 +2791,6 @@ L0E80:
 
 ; // process filesystem data and parameters
 process_fs_data:
-L0EBF:
 	ld (iy + 25), d;					// store D at IY+25
 	ld (iy + 24), e;					// store E at IY+24
 	ld l, $0d;							// load L with value $0D
@@ -2828,7 +2817,6 @@ L0EBF:
 
 ; // process filesystem mode and parameters
 process_fs_mode:
-L0EE9:
 	ld (iy + 28), a;					// store accumulator at IY+28 (mode flag)
 	push de;							// save DE register pair
 	push iy;							// push IY onto stack
@@ -2877,7 +2865,6 @@ L0EE9:
 
 ; // process FAT parameters for FAT16
 process_fat_parameters:
-L0F3E:
 	push iy;							// push IY onto stack
 	pop de;								// pop into DE (copy IY to DE)
 	ld e, $26;							// set E to offset $26
@@ -2902,7 +2889,6 @@ L0F3E:
 
 ; // calculate cluster parameters and free space
 calculate_cluster_params:
-L0F68:
 	ld h, 0;							// clear H register
 	ld l, (iy + 37);					// load value from IY+37 into L
 	sla l;								// shift L left arithmetic
@@ -2921,7 +2907,6 @@ L0F68:
 
 ; // calculate free clusters from sectors
 calculate_free_clusters:
-L0F8E:
 	ld h, (iy + 25);					// load high byte from IY+25
 	ld l, (iy + 24);					// load low byte from IY+24
 	or a;								// clear carry flag
@@ -2934,7 +2919,6 @@ L0F8E:
 
 ; // cluster calculation shift loop
 cluster_shift_loop:
-L0Fa3:
 	srl a;								// shift sectors per cluster right (find shift count)
 	jr c, store_cluster_results;		// jump if bit was 1 (found the shift count)
 	srl h;								// shift result high word right
@@ -2945,7 +2929,6 @@ L0Fa3:
 
 ; // store cluster calculation results
 store_cluster_results:
-L0FB1:
 	ld (iy + 62), e;					// store E at IY+62 (result low byte)
 	ld (iy + 63), d;					// store D at IY+63 (result mid byte)
 	ld (iy + 64), l;					// store L at IY+64 (result high byte)
@@ -2954,7 +2937,6 @@ L0FB1:
 
 ; // process directory entry information
 process_directory_entry:
-L0FBE:
 	ld a, (iy + 28);					// load mode flag from IY+28
 	cp 1;								// compare with 1
 	jr nz, $100f;						// jump if not equal to 1
@@ -3009,7 +2991,6 @@ L0FBE:
 
 ; // process volume label and disk information
 process_volume_label:
-L1021:
 	ld hl, $1416;						// load address $1416
 	ld a, 8;							// set A to 8
 	call L1470;							// call subroutine at L1470
@@ -3018,7 +2999,6 @@ L1021:
 
 ; // setup label copy parameters
 setup_label_copy:
-L102E:
 	push iy;							// save IY register
 	pop de;								// copy IY address to DE
 	ld e, $0c;							// set E to offset $0C
@@ -3028,30 +3008,25 @@ L102E:
 
 ; // use default no name label
 use_default_label:
-L1037:
 	ld hl, default_label_string;		// point to default "NO NAME" string
 
 ; // call string copy subroutine
 copy_label_string:
-L103A:
 	call copy_string_limited;			// call string copy subroutine
 	ret;								// return from routine
 
 ; // copy string with length limit
 copy_string_limited:
-L103E:
 	ld b, $0b;							// set counter to 11 characters
 
 ; // character copy loop
 char_copy_loop:
-L1040:
 	ld a, (hl);							// load character from source
 	cp ' ';								// $20
 	jr z, handle_space_chars;			// jump if space character
 
 ; // store character and continue
 store_char_continue:
-L1045:
 	ld (de), a;							// store character at destination
 	inc hl;								// increment source pointer
 	inc de;								// increment destination pointer
@@ -3060,7 +3035,6 @@ L1045:
 
 ; // handle space characters in label
 handle_space_chars:
-L104B:
 	inc hl;								// move to next character
 	ld a, (hl);							// load next character
 	cp ' ';								// $20
@@ -3069,18 +3043,16 @@ L104B:
 	jr nz, store_char_continue;			// continue copying if next char not space
 	ld a, b;							// check remaining count
 	cp $0b;								// compare with 11
-	jr z, L1037;						// jump to default name if no chars copied
+	jr z, use_default_label;			// jump to default name if no chars copied
 	ld a, 0;							// load zero
 	ld (de), a;							// null terminate string
 	ret;								// return from routine
 
 ; // default disk label string
 default_label_string:
-L105C:
 	defb "NO NAME  ";					// if disk has no label
 ; // initialize volume path string
 init_volume_path:
-L1065:
 	call L1169;							// call subroutine at L1169
 	call store_fs_parameters;			// call subroutine at L107B
 	push iy;							// push IY register onto stack
@@ -3097,7 +3069,6 @@ L1065:
 
 ; // store filesystem parameters
 store_fs_parameters:
-L107B:
 	ld a, (iy + 28);					// load mode flag from IY+28
 	cp 1;								// compare with 1
 	jr nz, store_param_values;			// jump if not equal to 1
@@ -3107,13 +3078,11 @@ L107B:
 
 ; // check if all registers zero
 check_all_zero:
-L1085:
 	or e;								// OR with E register (check if all zero)
 	call z, L1169;						// call L1169 if all registers are zero
 
 ; // store parameter values
 store_param_values:
-L1089:
 	ld (iy + 49), b;					// store B register at IY+49
 	ld (iy + 48), c;					// store C register at IY+48
 	ld (iy + 47), d;					// store D register at IY+47
@@ -3122,7 +3091,6 @@ L1089:
 
 ; // read disk sector function
 read_disk_sector:
-L1096:
 	push bc;							// save BC register pair
 	push de;							// save DE register pair
 	ld a, (iy + _flags);				// load flags from IY+_flags
@@ -3134,7 +3102,6 @@ L1096:
 
 ; // write disk sector function
 write_disk_sector:
-L10A0:
 	ld a, (iy + _flags);				// load flags from IY+_flags
 	rst $08;							// system call
 	defb disk_write;					// disk write operation
@@ -3142,7 +3109,6 @@ L10A0:
 
 ; // write sector with current drive
 write_current_drive:
-L10A6:
 	push bc;							// save BC register pair
 	push de;							// save DE register pair
 	ld a, ($3c25);						// get disk drive number
@@ -3152,26 +3118,34 @@ L10A6:
 	pop bc;								// restore BC register pair
 	ret;								// return to caller
 
+; // write cluster data to disk
+write_cluster_data:
 L10B0:
 	call L117F;							// load cluster start address
 	jr write_current_drive;				// jump to disk write routine
 
+; // read cluster data from disk
+read_cluster_data:
 L10B5:
 	call L117F;							// load cluster start address
 	jr read_disk_sector;				// jump to disk read routine
 
+; // check drive and cluster cache
+check_drive_cluster_cache:
 L10BA:
 	ld a, ($3c25);						// get current drive number
 	cp (iy + _flags);					// compare with file system drive
-	jr nz, L10C8;						// jump if different drive
+	jr nz, validate_cluster_get_buffer;	// jump if different drive
 	ld hl, $3c14;						// point to cluster number buffer
 	call compare_32bit;					// compare 32-bit cluster values
 
+; // validate cluster and get buffer
+validate_cluster_get_buffer:
 L10C8:
 	ld hl, $2800;						// load default buffer address
 	ccf;								// complement carry flag
 	ret z;								// return if zero flag set
-	call L10F3;							// call cluster validation routine
+	call flush_dirty_buffer;			// call cluster validation routine
 	ret c;								// return if error
 	push de;							// save DE register
 	push bc;							// save BC register
@@ -3180,7 +3154,7 @@ L10C8:
 	push hl;							// save calculated address
 	call read_disk_sector;				// read sector from disk
 	pop hl;								// restore calculated address
-	call c, L10B5;						// if read failed, try write operation
+	call c, read_cluster_data;			// if read failed, try write operation
 	pop hl;								// restore HL register
 	pop bc;								// restore BC register
 	pop de;								// restore DE register
@@ -3192,6 +3166,8 @@ L10C8:
 	pop af;								// restore operation result
 	ret;								// return to caller
 
+; // flush dirty buffer to disk
+flush_dirty_buffer:
 L10F3:
 	ld a, ($3c2b);						// get dirty buffer flag
 	or a;								// test if buffer needs flushing
@@ -3207,6 +3183,8 @@ L10F3:
 	pop bc;								// restore BC register
 	ret;								// return to caller
 
+; // mark buffer as dirty
+mark_buffer_dirty:
 L110A:
 	ld a, $ff;							// set dirty flag value
 	ld ($3c2b), a;						// mark buffer as dirty
@@ -3225,11 +3203,11 @@ L1111:
 	call write_current_drive;			// write buffer to disk
 	pop hl;								// restore calculated address
 	jr c, L1129;						// jump if write error
-	call L10B0;							// perform additional write operation
+	call write_cluster_data;			// perform additional write operation
 	or a;								// check operation result
 
 L1129:
-	call c, L10B0;						// call cleanup if error occurred
+	call c, write_cluster_data;			// call cleanup if error occurred
 	jr c, L1131;						// jump to exit if still error
 	call L11DD;							// call buffer flush function
 
@@ -3506,7 +3484,7 @@ L12C7:
 	ld d, c;							// D = C (shift high)
 	ld c, b;							// C = B (shift high)
 	ld b, 0;							// clear B (most significant byte)
-	call L10BA;							// call cluster to sector conversion
+	call check_drive_cluster_cache;		// call cluster to sector conversion
 	pop de;								// restore DE register
 	ret c;								// return if conversion failed
 	xor a;								// clear accumulator
@@ -3546,7 +3524,7 @@ L12F4:
 	rl d;								// rotate left D with carry
 	rl c;								// rotate left C with carry
 	rl b;								// rotate left B with carry
-	call L10BA;							// call cluster to sector conversion
+	call check_drive_cluster_cache;		// call cluster to sector conversion
 	pop de;								// restore DE register
 	ret c;								// return if conversion failed
 	xor a;								// clear accumulator
@@ -3629,7 +3607,7 @@ L135D:
 	ld bc, ($3c13);						// load system parameter value
 	push bc;							// save BC register
 	push de;							// save DE register again
-	call L110A;							// call cluster calculation function
+	call mark_buffer_dirty;				// call cluster calculation function
 	pop de;								// restore DE register
 	pop bc;								// restore BC register
 	pop hl;								// restore HL register
@@ -4277,7 +4255,7 @@ L1697:
 L1699 equ $1699
 
 	bit 3, (ix + 1);					// check if directory operation flag set
-	jp z, L10F3;						// jump to cleanup if not directory
+	jp z, flush_dirty_buffer;			// jump to cleanup if not directory
 	call L16CB;							// call directory update function
 	ret c;								// return if update failed
 	ld de, $14;							// load offset to directory entry data
@@ -4558,7 +4536,7 @@ L1815:
 	pop bc;								// restore BC register pair
 	ret c;								// return if size write failed
 	call $3108;							// call system function
-	call nc, L10F3;						// call directory update if no error
+	call nc, flush_dirty_buffer;		// call directory update if no error
 	ret c;								// return if update failed
 	call reset_file_position;			// call file position reset
 	call store_file_position;			// call cluster chain update
@@ -5859,7 +5837,7 @@ get_rom_byte:
 	org $1FD6
 	jp format_file_size;				// V089A - file size display routine (05_api.asm)
 	org $1FD9
-	jp L0DEB;							// V0DEB - screen channel open (08_memory.asm)
+	jp open_screen_channel;				// V0DEB - screen channel open (08_memory.asm)
 	org $1FDC
 	jp L2488;							// V2488 - vector to system function
 	org $1FDF
@@ -7037,7 +7015,7 @@ L3000:
 	push de;							// save DE register again
 	ld bc, ($3c17);						// reload saved size
 	ld de, ($3c15);						// reload saved address
-	call L110A;							// call memory reinitialization
+	call mark_buffer_dirty;				// call memory reinitialization
 	pop de;								// restore DE register
 	pop bc;								// restore BC register
 	jp L1135;							// jump to file descriptor function
