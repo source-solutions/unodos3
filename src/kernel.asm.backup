@@ -28,14 +28,14 @@
 	include "os.inc"
 	include "io.inc"
 
-;;; 01_restarts.asm
-
 ;	// automatically mapped in by the hardware after M1 when PC=$0000
 	org $0000;							// UnoDOS entry point at system reset
 start:
 	di;									// interrupts off for initialization
 	ld sp, $5e00;						// set stack pointer to $5e00 (below UDG area)
 	jp L0101;							// jump to main initialization routine
+
+;;; 01_restarts.asm
 
 ;	// automatically mapped in by the hardware after M1 when PC=0008h
 ;	// main API entry point
@@ -338,7 +338,7 @@ L016B:
 	call L027D;							// detect/initialize second device
 	ld hl, L0670;						// point to "mounting drives" message
 	call pr_str;						// print drive mounting message
-	call disk_mount_init;				// mount drives and setup filesystem
+	call L06E1;							// mount drives and setup filesystem
 	ld a, ($2d01);						// load drive configuration
 	ld ($2d4a), a;						// store in alternative location
 	ld ($2d46), a;						// store in another configuration location
@@ -1170,6 +1170,7 @@ L068F:
 	ret;								// return with Z flag set if BCDE is zero
 
 ; // 32-bit comparison function (compare BCDE with memory at HL)
+L0694:
 compare_32bit:
 	ld a, (hl);							// get high byte from memory
 	cp b;								// compare with B
@@ -1190,12 +1191,14 @@ compare_32bit:
 	ret;								// return with carry set
 
 ; // syntax checker (check if in BASIC syntax mode)
+L06A5:
 syntax_check:
 	rst $18;							// call BASIC ROM routine
 	defw syntax_z;						// check if in syntax checking mode
 	ret;								// return with Z flag set if syntax mode
 
 ; // 32-bit store function (store DEBC to memory at HL)
+L06A9:
 store_32bit:
 	ld (hl), e;							// store low byte of 32-bit value
 	inc hl;								// advance to next location
@@ -1229,6 +1232,7 @@ msg_nmi:
 
 ;	// disk mounting and initialization routine
 	org $06e1
+L06E1:
 disk_mount_init:
 	ld hl, $2df2;						// load pointer to disk information table
 	push hl;							// save disk info pointer on stack
@@ -1237,6 +1241,7 @@ disk_mount_init:
 	pop hl;								// restore disk info pointer
 
 ;	// mount all available filesystems loop
+L06E8:
 mount_filesystems_loop:
 	ld a, (hl);							// load filesystem identifier
 	and a;								// check if zero (end of list)
@@ -1248,7 +1253,7 @@ mount_filesystems_loop:
 	pop hl;								// restore filesystem table pointer
 	ld de, 6;							// each filesystem entry is 6 bytes
 	add hl, de;							// point to next filesystem entry
-	jr mount_filesystems_loop;			// continue with next filesystem
+	jr L06E8;							// continue with next filesystem
 	call L0714;							// search for filesystem type in supported list
 	scf;								// set carry flag to indicate error
 	ret z;								// return if zero flag set
@@ -1508,6 +1513,7 @@ L07FE:
 	str "No system";					// RASM - string with terminal bit 7 set
 
 ;	// 32-bit increment function (BCDE register pair)
+L081C:
 inc_32bit:
 	inc e;								// increment low byte (E register)
 	ret nz;								// return if no overflow from E
@@ -1519,6 +1525,7 @@ inc_32bit:
 	ret;								// return after incrementing all bytes
 
 ;	// 32-bit decrement function with underflow check
+L0824:
 dec_32bit:
 	ld a, $ff;							// load $FF (underflow detection value)
 	dec e;								// decrement low byte (E register)
@@ -1534,6 +1541,7 @@ dec_32bit:
 	ret;								// return after decrementing all bytes
 
 ;	// 32-bit addition (BCDE = BCDE + HLDE)
+L0831:
 add_32bit:
 	add hl, de;							// add DE to HL (low 16 bits)
 	ex de, hl;							// exchange DE and HL registers
@@ -1542,6 +1550,7 @@ add_32bit:
 	ret;								// return to caller
 
 ;	// 32-bit subtraction (BCDE = BCDE - HLDE)
+L0836:
 sub_32bit:
 	or a;								// clear carry flag for subtraction
 	ex de, hl;							// exchange DE and HL registers
@@ -1566,6 +1575,7 @@ pr_str:
 
 ;	// jumped to from RST10 - print a character in 'a'
 ; // character print routine (RST $10 handler)
+L0845:
 char_print_routine:
 	push hl;							// save registers
 	push de;							// save DE register
@@ -1852,6 +1862,7 @@ L093D:
 
 ;	// RST08_handler
 ; // main syscall dispatcher (RST $08 entry point)
+L0985:
 syscall_dispatcher:
 	ex (sp), hl;						// swap HL with top of stack (return address)
 	ld ($3dfa), a;						// save parameter in A
@@ -1861,6 +1872,7 @@ syscall_dispatcher:
 	ex (sp), hl;						// and saves it to the stack
 
 ; // register preservation and syscall setup
+L098C:
 syscall_reg_save:
 	push iy;							// save registers
 	push ix;							// save index register X
@@ -2035,7 +2047,7 @@ L0A77:
 	ld a, 7;							// offset to compare value
 	add a, l;							// add to address
 	ld l, a;							// store result
-	jp compare_32bit;					// jump to comparison routine (04_files.asm)
+	jp L0694;							// jump to comparison routine (04_files.asm)
 
 L0A84:
 	add a, a;							// shift A left (multiply by 2)
@@ -2046,7 +2058,7 @@ L0A84:
 	push hl;							// save address pointer
 	add a, 7;							// add 7 to address (offset calculation)
 	ld l, a;							// store offset address in L
-	call compare_32bit;					// call comparison routine (04_files.asm)
+	call L0694;							// call comparison routine (04_files.asm)
 	pop hl;								// restore address pointer
 	ret c;								// return if comparison failed
 	ld a, (hl);							// get first byte of 32-bit value
@@ -2461,6 +2473,7 @@ L0CBD:
 ;	// execution with divMMC paged in.
 
 ; // character processing routine
+L0CD4:
 char_processing_routine:
 	ld (x_ptr), hl;						// save HL in x_ptr system variable
 	ld l, a;							// save A register in L
@@ -2848,7 +2861,7 @@ L0EE9:
 	rr l;								// rotate L right with carry
 	ld (iy + 66), l;					// store result at IY+66
 	ld bc, 0;							// clear BC register pair
-	call add_32bit;						// call subroutine at L0831
+	call L0831;							// call subroutine at L0831
 	jr L0F68;							// jump to L0F68
 
 L0F3E:
@@ -2879,7 +2892,7 @@ L0F68:
 	ld l, (iy + 37);					// load value from IY+37 into L
 	sla l;								// shift L left arithmetic
 	rl h;								// rotate H left through carry
-	call sub_32bit;						// call subroutine at L0836
+	call L0836;							// call subroutine at L0836
 	ld (iy + 45), b;					// store B at IY+45
 	ld (iy + 44), c;					// store C at IY+44
 	ld (iy + 43), d;					// store D at IY+43
@@ -3097,7 +3110,7 @@ L10BA:
 	cp (iy + _flags);					// compare with file system drive
 	jr nz, L10C8;						// jump if different drive
 	ld hl, $3c14;						// point to cluster number buffer
-	call compare_32bit;					// compare 32-bit cluster values
+	call L0694;							// compare 32-bit cluster values
 
 L10C8:
 	ld hl, $2800;						// load default buffer address
@@ -3214,7 +3227,7 @@ L1173:
 	push hl;							// save HL register
 	ld l, (iy + 29);					// load cluster pointer low byte
 	ld h, (iy + 30);					// load cluster pointer high byte
-	call add_32bit;						// call cluster processing function
+	call L0831;							// call cluster processing function
 	pop hl;								// restore HL register
 	ret;								// return from function
 
@@ -3308,7 +3321,7 @@ L1202:
 	cp (iy + _flags);					// compare with file flags
 	jr nz, L1213;						// jump if flags differ
 	ld hl, $3c2a;						// load buffer address
-	call compare_32bit;					// call utility function
+	call L0694;							// call utility function
 
 L1213:
 	ld hl, $2a00;						// load sector buffer address
@@ -3504,8 +3517,8 @@ L1321:
 	inc b;								// increment B register
 	jr z, L1332;						// jump if zero result
 	dec b;								// decrement B back
-	call c, inc_32bit;					// call disk function if carry set
-	call nc, dec_32bit;					// call alternate function if no carry
+	call c, $081c;						// call disk function if carry set
+	call nc, L0824;						// call alternate function if no carry
 	call L11D0;							// call cleanup function
 
 L1332:
@@ -3732,7 +3745,7 @@ L142C:
 	push hl;							// save HL register
 	call L1142;							// get file current sector address
 	ld hl, $3c22;						// load buffer address
-	call compare_32bit;					// call comparison function
+	call L0694;							// call comparison function
 	pop hl;								// restore HL register
 	pop bc;								// restore BC register
 	ld a, b;							// reload operation code
@@ -3753,7 +3766,7 @@ L1442:
 	push iy;							// save IY register
 	pop hl;								// transfer IY to HL
 	ld l, $29;							// set offset for file attribute
-	call compare_32bit;					// call comparison function
+	call L0694;							// call comparison function
 	jr nz, L145D;						// jump if not zero
 	pop hl;								// restore HL register
 	push hl;							// save HL again
@@ -3857,7 +3870,7 @@ L14C8:
 	call L115C;							// call file descriptor function
 	call L19D3;							// call position storage function
 	call L1142;							// call sector calculation function
-	call store_file_position;			// call position update function
+	call L19B9;							// call position update function
 	ret;								// return from function
 
 ; // check file attributes and compare filenames
@@ -3888,7 +3901,7 @@ L1505:
 	ld (ix + 19), a;					// restore sector number
 	call L19E0;							// call position restore function
 	call L114F;							// call sector setup function
-	call load_file_position;			// call position load function
+	call L19C6;							// call position load function
 	call L1135;							// call position store function
 	ld a, 5;							// load error code 5 (file not found)
 	scf;								// set carry flag (error)
@@ -4314,8 +4327,8 @@ L172A:
 	rst $30;							// call system function
 	ld bc, $07cd;						// load initialization parameters
 	ld a, (de);							// load entry data
-	call reset_file_position;			// call file position reset function
-	call store_file_position;			// call file position store function
+	call L17DB;							// call file position reset function
+	call L19B9;							// call file position store function
 	ld a, ($3c01);						// load operation flags
 	push af;							// save flags
 	and %00000011;						// mask access mode bits
@@ -4388,6 +4401,7 @@ L17A0:
 	inc hl;								// move to attribute field
 
 ; // initialize directory entry fields
+L17AC:
 init_dir_entry:
 	ld (hl), a;							// clear attribute field
 	inc hl;								// move to next field
@@ -4432,6 +4446,7 @@ init_dir_entry:
 	ret;								// return from function
 
 ; // file position reset function
+L17DB:
 reset_file_position:
 	ld b, 0;							// clear 32-bit file position
 	ld c, b;							// clear C register
@@ -4485,15 +4500,15 @@ L1815:
 	ld h, (ix + 29);					// load directory entry pointer high
 	ld de, $0c;							// load offset to file size field (12 bytes)
 	add hl, de;							// add offset to pointer
-	call init_dir_entry;				// call file size write function
+	call L17AC;							// call file size write function
 	pop de;								// restore DE register pair
 	pop bc;								// restore BC register pair
 	ret c;								// return if size write failed
 	call $3108;							// call system function
 	call nc, L10F3;						// call directory update if no error
 	ret c;								// return if update failed
-	call reset_file_position;			// call file position reset
-	call store_file_position;			// call cluster chain update
+	call L17DB;							// call file position reset
+	call L19B9;							// call cluster chain update
 	call L1773;							// call directory finalize function
 	ld hl, $1a7c;						// load function vector address
 	ld ($3dee), hl;						// store function vector
@@ -4602,13 +4617,13 @@ L18D0:
 	ld c, b;							// clear C register
 	ld d, c;							// clear D register
 	ld e, d;							// clear E register (position = 0)
-	jp store_file_position;				// jump to cluster update function
+	jp L19B9;							// jump to cluster update function
 	bit 0, (ix + 1);					// test file access mode bit
 	ld a, 8;							// load error code (invalid access)
 	scf;								// set carry flag (error condition)
 	ret z;								// return error if access mode is zero
 	push hl;							// save buffer pointer
-	call calculate_file_size;			// call file size calculation
+	call L1989;							// call file size calculation
 	pop hl;								// restore buffer pointer
 	ld a, c;							// load size low byte
 	or b;								// combine with high byte
@@ -4656,7 +4671,7 @@ L1911:
 	ld b, a;							// store remaining count
 	or c;								// check if any bytes remain
 	ex de, hl;							// exchange buffer pointers
-	call update_file_position;			// call buffer position update
+	call L19AB;							// call buffer position update
 	ex de, hl;							// restore buffer pointers
 	jr nz, L18F3;						// loop if more bytes to process
 	or a;								// clear carry (success)
@@ -4679,7 +4694,7 @@ L1934:
 	push de;							// save DE register pair
 	push bc;							// save BC register pair
 	push hl;							// save HL register pair
-	call load_file_position;			// call file position load function
+	call L19C6;							// call file position load function
 	rst $30;							// call ROM calculator routine
 	dec c;								// decrement C register
 	call nz, L1250;						// call function if C not zero
@@ -4736,9 +4751,10 @@ L1983:
 	jp L122C;							// jump to write processing routine
 
 ; // file size calculation and validation function
+L1989:
 calculate_file_size:
 	push bc;							// save BC register pair
-	call load_file_position;			// call file position load function
+	call L19C6;							// call file position load function
 	ld h, (ix + 12);					// load file size high byte
 	ld l, (ix + 11);					// load file size low byte
 	or a;								// clear carry for subtraction
@@ -4760,17 +4776,19 @@ calculate_file_size:
 	ret;								// return with limited byte count
 
 ; // file position update and store function
+L19AB:
 update_file_position:
 	push de;							// save DE register pair
 	push bc;							// save BC register pair
-	call load_file_position;			// call file position load function
-	call add_32bit;						// call 32-bit addition function
-	call store_file_position;			// call file position store function
+	call L19C6;							// call file position load function
+	call L0831;							// call 32-bit addition function
+	call L19B9;							// call file position store function
 	pop bc;								// restore BC register pair
 	pop de;								// restore DE register pair
 	ret;								// return from function
 
 ; // store 32-bit file position (DEBC -> file descriptor)
+L19B9:
 store_file_position:
 	ld (ix + 15), e;					// store file position byte 0 (low)
 	ld (ix + 16), d;					// store file position byte 1
@@ -4779,6 +4797,7 @@ store_file_position:
 	ret;								// return from position store
 
 ; // load 32-bit file position (file descriptor -> DEBC)
+L19C6:
 load_file_position:
 	ld e, (ix + 15);					// load file position byte 0 (low)
 	ld d, (ix + 16);					// load file position byte 1
@@ -4883,7 +4902,7 @@ L1A43:
 	add a, l;							// add to pointer
 	ld l, a;							// store updated pointer
 	call L1A14;							// call directory cluster load
-	call compare_32bit;					// call cluster comparison function
+	call L0694;							// call cluster comparison function
 	call z, restart_28;					// call restart if clusters match
 	pop hl;								// restore descriptor pointer
 	pop bc;								// restore BC register pair
@@ -4906,7 +4925,7 @@ L1A43:
 	add a, l;							// add to pointer
 	ld l, a;							// store updated pointer
 	call L19E0;							// call file size load function
-	jp store_32bit;						// jump to completion routine
+	jp L06A9;							// jump to completion routine
 	dec l;								// decrement pointer to status field
 	dec l;								// decrement pointer further
 	dec l;								// position at file flags
@@ -6828,7 +6847,7 @@ L2575:
 	jr nz, L2575;						// repeat until done
 	ld a, h;							// load overflow bits
 	and a;								// test for overflow
-	call nz, inc_32bit;					// handle overflow if present
+	call nz, L081C;						// handle overflow if present
 
 L2587:
 	push iy;							// save IY register
@@ -6922,7 +6941,7 @@ L25F9:
 	ld a, l;							// load accumulated overflow
 	and a;								// test for overflow bits
 	ld a, h;							// load high byte for overflow check
-	call nz, inc_32bit;					// call overflow handler if bits set
+	call nz, L081C;						// call overflow handler if bits set
 	ret;								// return from shift function
 
 L260D:
@@ -7030,14 +7049,14 @@ L3098:
 	res 2, (iy + _oldppc);				// clear system processing flag
 	ld de, ($3c11);						// load memory base address
 	ld bc, ($3c13);						// load memory size
-	call inc_32bit;						// call 32-bit increment function
+	call L081C;							// call 32-bit increment function
 	push bc;							// save BC register
 	push de;							// save DE register
-	call inc_32bit;						// call 32-bit increment again
+	call L081C;							// call 32-bit increment again
 	push iy;							// save IY register
 	pop hl;								// transfer IY to HL
 	ld l, $22;							// set offset to system area
-	call compare_32bit;					// call memory comparison function
+	call L0694;							// call memory comparison function
 	pop de;								// restore DE register
 	pop bc;								// restore BC register
 	jr nz, L30CD;						// jump if comparison failed
@@ -7160,7 +7179,7 @@ L315C:
 	push af;							// save accumulator and flags
 	push bc;							// save BC register
 	push hl;							// save HL register
-	call load_file_position;			// call file position function
+	call L19C6;							// call file position function
 	push ix;							// save IX register
 	pop hl;								// transfer IX to HL
 	ld a, l;							// get low byte of IX
@@ -7286,7 +7305,7 @@ L3235:
 	jr z, L329F;						// jump to error handler if filename starts with '.'
 	call L19FA;							// call file buffer preparation function
 	ld hl, $3c1E;						// load buffer address for comparison
-	call compare_32bit;					// call memory comparison function
+	call L0694;							// call memory comparison function
 	jr nz, L3265;						// jump if comparison failed (file exists)
 	ld a, ($3c23);						// load saved drive number
 	ld (ix + $06), a;					// restore drive number to file descriptor
@@ -7587,8 +7606,8 @@ L33D2:
 	ld c, b;							// clear C register
 	ld d, c;							// clear D register
 	ld e, d;							// clear E register
-	call store_file_position;			// call file size setup function
-	call dec_32bit;						// call 32-bit arithmetic function
+	call L19B9;							// call file size setup function
+	call L0824;							// call 32-bit arithmetic function
 	call L19D3;							// call buffer management function
 	call L1773;							// call file completion function
 	or a;								// clear carry flag
@@ -7763,7 +7782,7 @@ L34CA:
 	ld c, a;							// copy accumulator to C
 	push hl;							// save cluster pointer
 	ld hl, $80;							// load sector size constant
-	call add_32bit;						// call arithmetic function
+	call L0831;							// call arithmetic function
 	pop hl;								// restore cluster pointer
 	ld l, $0b;							// offset to attributes field
 	rst $30;							// call ROM calculator routine
@@ -7816,13 +7835,13 @@ L352D:
 L353C:
 	call L305E;							// call memory management function
 	exx;								// switch to alternate register set
-	call inc_32bit;						// call 32-bit increment function
+	call L081C;							// call 32-bit increment function
 	ret c;								// return if arithmetic overflow
 	exx;								// switch back to main register set
 	jr L353C;							// loop for memory block processing
 ; // return point from memory allocation loop
 L3546:
-	call load_file_position;			// call file position function
+	call L19C6;							// call file position function
 	or a;								// clear carry flag (success)
 	ret;								// return from memory allocation
 
@@ -8032,7 +8051,7 @@ L366D:
 	ld a, 8;							// load error code 8 (file not open for write)
 	scf;								// set carry flag (error condition)
 	ret z;								// return if file not open for writing
-	call load_file_position;			// call file position function
+	call L19C6;							// call file position function
 	call L3183;							// call buffer synchronization
 	call L1142;							// call write operation handler
 
@@ -8082,7 +8101,7 @@ L36B5:
 	jr z, L36F0;						// jump if zero
 	push bc;							// save BC registers
 	push de;							// save DE registers
-	call load_file_position;			// call processing routine
+	call L19C6;							// call processing routine
 	ex de, hl;							// exchange DE and HL
 	pop de;								// restore DE registers
 	cp 1;								// compare with 1
@@ -8164,14 +8183,14 @@ L371F:
 
 L372F:
 	push de;							// save DE registers
-	call load_file_position;			// call graphics routine
+	call L19C6;							// call graphics routine
 	rst $30;							// restart 30 (calculator)
 	dec c;								// decrement counter
 	jr z, L3743;						// jump if zero
 	ld a, (iy + _coord_x);				// get X coordinate
 	or a;								// test if zero
 	jr nz, L375E;						// jump if not zero
-	call load_file_position;			// call graphics routine
+	call L19C6;							// call graphics routine
 	call L3796;							// call display routine
 
 L3743:
@@ -8192,7 +8211,7 @@ L3743:
 	ret;								// return to caller
 
 L3759:
-	call inc_32bit;						// call error handling routine
+	call L081C;							// call error handling routine
 	jr L3743;							// loop back for retry
 
 L375E:
@@ -8201,14 +8220,14 @@ L375E:
 	sub (ix + $13);						// subtract offset value
 	ld h, 0;							// clear H register
 	ld l, a;							// load result into L
-	call sub_32bit;						// call graphics calculation routine
+	call L0836;							// call graphics calculation routine
 	ld a, (iy + _coord_y);				// get Y coordinate
 	pop hl;								// restore HL registers
 	dec a;								// decrement Y coordinate
 	and l;								// mask with L register
 	ld h, 0;							// clear H register
 	ld l, a;							// load masked value into L
-	call add_32bit;						// call coordinate routine
+	call L0831;							// call coordinate routine
 	call L114F;							// call display routine
 	pop de;								// restore DE registers
 	pop bc;								// restore BC registers
@@ -8230,7 +8249,7 @@ L375E:
 
 L3792:
 	or a;								// test accumulator
-	jp store_file_position;				// jump to handler routine
+	jp L19B9;							// jump to handler routine
 
 L3796:
 	or a;								// test accumulator
@@ -8250,7 +8269,7 @@ L37A6:
 
 L37A7:
 	dec hl;								// decrement HL
-	call add_32bit;						// call coordinate routine
+	call L0831;							// call coordinate routine
 	ld e, d;							// move D to E
 	ld d, c;							// move C to D
 	ld c, b;							// move B to C
@@ -8262,7 +8281,7 @@ L37B0:
 	rr e;								// rotate E right through carry
 	rrca;								// rotate accumulator right with carry
 	jr nc, L37B0;						// loop while no carry
-	jp dec_32bit;						// jump to processing routine
+	jp L0824;							// jump to processing routine
 
 L37BC:
 	ld a, $1c;							// load control code 28 (print inverse)
