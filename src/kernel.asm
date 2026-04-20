@@ -304,8 +304,8 @@ memory_init_complete:
 	ld (chars), hl;						// set character set pointer (from verbose call)
 	ld hl, copyright;					// point to copyright message string
 	call pr_str;						// print copyright message
-	call setup_vector_table;							// setup system vectors and initial configuration
-	call L03A7;							// additional system initialization
+	call setup_vector_table;			// setup system vectors and initial configuration
+	call setup_divmmc_config;			// additional system initialization
 	ld a, $3e;							// LD A,n instruction opcode
 	ld hl, $2007;						// code generation area
 	ld (hl), a;							// store LD A,n instruction
@@ -361,7 +361,7 @@ memory_init_complete:
 	call display_filename;				// setup betadisk filename
 	call load_system_page3;				// attempt to load betadisk system
 	push af;							// save load result
-	call nc, L03C4;						// if load successful, initialize betadisk
+	call nc, execute_page3_code;		// if load successful, initialize betadisk
 	pop af;								// restore load result
 	call show_result;					// show OK or ERROR for betadisk load
 
@@ -575,7 +575,7 @@ close_handle_slot:
 find_handle_with_setup:
 	push hl;							// save HL register
 	push bc;							// save BC register
-	call find_file_handle;							// find file handle slot
+	call find_file_handle;				// find file handle slot
 	push hl;							// save handle slot address
 	pop iy;								// copy to IY register
 	pop bc;								// restore BC register
@@ -591,11 +591,11 @@ handle_search_loop:
 	ld a, (hl);							// get file handle from current slot
 	xor c;								// compare with target handle
 	and %11111000;						// mask out lower 3 bits
-	jr z, handle_found_check;						// jump if match found
+	jr z, handle_found_check;			// jump if match found
 	ld a, $28;							// handle slot size (40 bytes)
 	add a, l;							// advance to next slot
 	ld l, a;							// update pointer
-	djnz handle_search_loop;							// continue search
+	djnz handle_search_loop;			// continue search
 	scf;								// set carry flag (handle not found)
 	ret;								// return with error
 
@@ -629,17 +629,17 @@ memory_address_calc:
 	rl h;								// rotate carry into H
 	add hl, de;							// add base address
 	ld a, iyh;							// get high byte of IY
-	call L03D4;							// call address lookup function
+	call search_error_pages;			// call address lookup function
 	ld a, ixl;							// get low byte of IX back
 
-L03A1:
+restore_registers:
 	push hl;							// save HL register
 	pop ix;								// copy to IX register
 	pop hl;								// restore original HL
 	pop de;								// restore original DE
 	ret;								// return to caller
 
-L03A7:
+setup_divmmc_config:
 	ld hl, $2d2a;						// point to system table entry
 	ld de, $0df1;						// address parameter
 	ld bc, $0384;						// size/count parameter  
@@ -657,7 +657,7 @@ L03A7:
 	out (mmcram), a;					// switch back to divMMC page 0
 	ret;								// return to caller
 
-L03C4:
+execute_page3_code:
 	nop;								// padding/alignment
 	nop;								// padding/alignment
 	nop;								// padding/alignment
@@ -670,35 +670,35 @@ L03C4:
 	out (mmcram), a;					// switch back to divMMC page 0
 	ret;								// return to caller
 
-L03D4:
+search_error_pages:
 	push bc;							// save BC register
 	ld iy, $2000;						// point IY to divMMC window start
 	ld b, 4;							// loop counter for 4 iterations
 
-L03DB:
+page_search_loop:
 	cp (iy + _err_nr);					// compare with error number field
-	jr z, L03E7;						// jump if match found
+	jr z, search_found_success;			// jump if match found
 	inc iyh;							// advance to next page
-	djnz L03DB;							// continue loop
+	djnz page_search_loop;				// continue loop
 	pop bc;								// restore BC register
 	scf;								// set carry flag (not found)
 	ret;								// return with error
 
-L03E7:
+search_found_success:
 	or a;								// clear carry flag (success)
 	pop bc;								// restore BC register
 	ret;								// return with success
 
-L03EA:
+prepare_system_request:
 	ld b, a;							// save request parameter in B
 	ld hl, $2d2a;						// point to system table
 
-L03EE:
+system_table_loop:
 	call L04E7;							// get/prepare system data
 	ld ixh, a;							// store result in IX high
 	ld a, (hl);							// get table entry
 	cp 255;								// check for end marker
-	jr z, L040B;						// jump if end of table
+	jr z, table_end_error;				// jump if end of table
 	ld e, a;							// save entry in E
 	push de;							// save DE register
 	inc hl;								// advance to address field
@@ -708,29 +708,29 @@ L03EE:
 	inc hl;								// advance to next entry
 	push hl;							// save table pointer
 	push bc;							// save request parameter
-	call L040F;							// process the entry
+	call process_table_entry;			// process the entry
 	pop bc;								// restore request parameter
 	pop hl;								// restore table pointer
 	pop ix;								// restore IX from DE
 	ret nc;								// return if operation successful
-	jr L03EE;							// continue with next table entry
+	jr system_table_loop;				// continue with next table entry
 
-L040B:
+table_end_error:
 	ld a, $1e;							// error code: "invalid" (30 decimal)
 	scf;								// set carry flag (error)
 	ret;								// return with error
 
-L040F:
+process_table_entry:
 	push hl;							// save HL register
 	push hl;							// save HL register again
 	out (mmcram), a;					// switch to specified divMMC page
 	ld ($3df8), a;						// store current divMMC page number
 	ld h, d;							// copy address to HL
 	ld l, e;							// complete address transfer
-	call memory_address_calc;							// call address handling routine
+	call memory_address_calc;			// call address handling routine
 	jp L0B5A;							// jump to main processing routine
 
-L041E:
+get_drive_info:
 	ld hl, $2df2;						// point to drive info buffer
 	push hl;							// save buffer pointer
 	rst $08;							// call UnoDOS API
@@ -1353,7 +1353,7 @@ L0769:
 	ld a, (de);							// load drive ID from drive info structure
 	push hl;							// save HL register on stack
 	push bc;							// save BC register on stack
-	call L03EA;							// call drive setup routine
+	call prepare_system_request;		// call drive setup routine
 	pop bc;								// restore BC register from stack
 	pop hl;								// restore HL register from stack
 	ret c;								// return if carry set (error in drive setup)
