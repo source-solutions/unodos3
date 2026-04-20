@@ -41,7 +41,7 @@ start:
 ;	// main API entry point
 	org $0008
 restart_08:
-	jp syscall_dispatcher;					// jump to main syscall dispatcher
+	jp syscall_dispatcher;				// jump to main syscall dispatcher
 
 next_char_basic:
 	ld hl, (ch_add);					// get pointer to next character in BASIC program
@@ -548,11 +548,11 @@ check_handle_limit:
 find_free_handle_slot:
 	ld a, (hl);							// get file handle entry
 	and a;								// test if slot is free (zero)
-	jr z, store_handle_in_slot;						// jump if free slot found
+	jr z, store_handle_in_slot;			// jump if free slot found
 	ld a, $28;							// file handle entry size (40 bytes)
 	add a, l;							// advance to next handle slot
 	ld l, a;							// update pointer
-	jr find_free_handle_slot;							// check next slot
+	jr find_free_handle_slot;			// check next slot
 
 store_handle_in_slot:
 	ld (hl), c;							// store file handle in free slot
@@ -563,7 +563,7 @@ store_handle_in_slot:
 	ret;								// return with handle slot in IY
 
 close_handle_slot:
-	call find_file_handle;							// find file handle slot
+	call find_file_handle;				// find file handle slot
 	ret c;								// return if handle not found
 	xor a;								// clear accumulator
 	ld (hl), a;							// clear the file handle slot
@@ -694,7 +694,7 @@ prepare_system_request:
 	ld hl, $2d2a;						// point to system table
 
 system_table_loop:
-	call L04E7;							// get/prepare system data
+	call validate_filename_buffer;		// get/prepare system data
 	ld ixh, a;							// store result in IX high
 	ld a, (hl);							// get table entry
 	cp 255;								// check for end marker
@@ -740,14 +740,14 @@ get_drive_info:
 	and a;								// test if zero drives
 	ret z;								// return if no drives found
 
-L0428:
+print_all_drives:
 	push bc;							// save drive counter
-	call L0430;							// print information for one drive
+	call print_drive_info;				// print information for one drive
 	pop bc;								// restore drive counter
-	djnz L0428;							// repeat for all drives
+	djnz print_all_drives;				// repeat for all drives
 	ret;								// return when all drives printed
 
-L0430:
+print_drive_info:
 	ld a, (hl);							// get drive type/status
 	rst $30;							// internal UnoDOS call
 	add hl, bc;							// advance past some fields
@@ -761,11 +761,11 @@ L0430:
 	ld bc, $ff;							// byte count for string search
 	xor a;								// search for null terminator
 	cpir;								// scan for end of string
-	call L0458;							// print string with comma
+	call print_string_comma;			// print string with comma
 	ld b, h;							// save H to B
 	ld c, l;							// save L to C
 	pop hl;								// restore original HL
-	call L0458;							// print another string with comma
+	call print_string_comma;			// print another string with comma
 	ld l, e;							// setup for next operation
 	ld h, d;							// complete address setup
 	pop de;								// restore DE
@@ -776,7 +776,7 @@ L0430:
 	pop hl;								// restore pointer for next drive
 	ret;								// return to drive loop
 
-L0458:
+print_string_comma:
 	call pr_str;						// print string pointed to by HL
 	inc hl;								// advance past string
 	ld a, ',';							// comma character
@@ -786,24 +786,24 @@ L0458:
 	ret;								// return to caller
 
 	org $0482
-L0482:
+format_size_display:
 	ld l, a;							// save original value in L
 	and %11100000;						// mask to get upper 3 bits
 	ret z;								// return if zero (no size to display)
 	ld e, $30;							// default base character '0'
 	ld c, $66;							// default unit character 'f' (for bytes)
 	cp ' ';								// compare with space character ($20)
-	jr z, L049E;						// jump if 32 (32 bytes)
+	jr z, print_size_units;				// jump if 32 (32 bytes)
 	ld c, $76;							// unit character 'v' for 'K'
 	cp $60;								// compare with $60 (96 = 3 * 32K)
-	jr z, L049E;						// jump if kilobyte size
+	jr z, print_size_units;				// jump if kilobyte size
 	ld e, $61;							// base character 'a' for 'M'
 	cp $80;								// compare with $80 (128 = 4 * 32M)
 	ld c, $73;							// unit character 's' for 'M'
-	jr z, L049E;						// jump if megabyte size
+	jr z, print_size_units;				// jump if megabyte size
 	ld c, $68;							// unit character 'h' for 'G'
 
-L049E:
+print_size_units:
 	ld a, c;							// get unit character
 	rst $10;							// print unit character
 	ld a, 'd';							// print 'd' character
@@ -827,7 +827,7 @@ L049E:
 ;	// automatically mapped in by the hardware after M1 when PC=004C6h
 ;	// Automapped entry point for SAVE command
 	org $04c6
-L04C6:
+save_command_trap:
 	ld hl, $1f80;						// return address for ROM SAVE routine
 	push hl;							// push return address onto stack
 	ld b, a;							// save file type in B
@@ -836,7 +836,7 @@ L04C6:
 	ld a, ($2d4c);						// check SAVE intercept flag
 	and a;								// test if SAVE interception enabled
 	ld a, b;							// restore file type
-	jr z, L04E1;						// if not enabled, use ROM SAVE
+	jr z, fallback_rom_save;			// if not enabled, use ROM SAVE
 	push de;							// save filename pointer
 	push bc;							// save file type and parameters
 	call L23C4;							// call UnoDOS file save handler
@@ -846,11 +846,11 @@ L04C6:
 	ld a, b;							// get file type back
 	jp nc, $2011;						// if successful, jump to completion routine
 
-L04E1:
+fallback_rom_save:
 	ld hl, $04c9;						// address within SAVE trap area
 	jp L1FF4;							// unmap divMMC and return to ROM SAVE
 
-L04E7:
+validate_filename_buffer:
 	push hl;							// save HL register
 	push bc;							// save BC register
 	ld hl, $2cf1;						// point to buffer area
@@ -859,18 +859,18 @@ L04E7:
 	cpir;								// scan for first null byte
 	ld a, $0c;							// error code: "invalid filename"
 	scf;								// set carry flag (assume error)
-	call z, L04FB;						// if null found, calculate length
+	call z, calc_string_length;			// if null found, calculate length
 	pop bc;								// restore BC register
 	pop hl;								// restore HL register
 	ret;								// return with result
 
-L04FB:
+calc_string_length:
 	ld a, $0f;							// original search length
 	sub c;								// subtract remaining count
 	ret;								// return actual length in A
 
 ;	org $050d
-L04FF:
+copy_with_page_switch:
 	push af;							// save accumulator and flags
 	push ix;							// save IX register
 	push hl;							// save HL register
@@ -880,7 +880,7 @@ L04FF:
 	ld b, $7f;							// loop counter (127 bytes max)
 
 ;	org $051a
-L050C:
+string_copy_loop:
 	out (c), l;							// set divMMC page to L
 	ld a, (ix + 0);						// get byte from source
 	out (c), h;							// set divMMC page to H
@@ -888,11 +888,11 @@ L050C:
 	inc ix;								// advance source pointer
 	inc de;								// advance destination pointer
 	and a;								// test if byte was null terminator
-	jr z, L051C;						// if null, string copy complete
-	djnz L050C;							// continue copying bytes
+	jr z, string_copy_complete;			// if null, string copy complete
+	djnz string_copy_loop;				// continue copying bytes
 
 ;	org $052a
-L051C:
+string_copy_complete:
 	push ix;							// save current IX pointer
 	pop hl;								// copy IX to HL
 	pop ix;								// restore original IX
@@ -900,10 +900,10 @@ L051C:
 	ret;								// return to caller
 
 ;	org $0531
-L0523:
+select_drive_number:
 	push bc;							// save BC register
 	cp '*';								// check if current drive requested
-	jr nz, L0538;						// if not '*', branch to display drive
+	jr nz, process_drive_number;		// if not '*', branch to display drive
 	ld a, ($3df9);						// get current system page
 	ld b, a;							// save in B
 	ld a, 0;							// select page 0
@@ -915,7 +915,7 @@ L0523:
 	ld a, c;							// get drive number back
 
 ;	org $05046
-L0538:
+process_drive_number:
 	push af;							// save drive number/character
 	and %11111000;						// mask to get drive number (upper 5 bits)
 	srl a;								// shift right (divide by 2)
@@ -998,16 +998,16 @@ vector_tbl:
 	defw L05F3;							// vector 2: get next character from BASIC
 	defw syntax_check;					// vector 3: check BASIC syntax mode
 	defw L064B;							// vector 4: copy null-terminated string with page switching
-	defw L04FF;							// vector 5: copy string with page switching (127 char max)
+	defw copy_with_page_switch;			// vector 5: copy string with page switching (127 char max)
 	defw L0643;							// vector 6: copy data block with page switching (LDIR)
 	defw L0619;							// vector 7: copy data block (LDIR or page switch)
 	defw compare_32bit;					// vector 8: compare 32-bit values (DEBC vs (HL))
-	defw L0523;							// vector 9: display current drive (format "Ad0:")
+	defw select_drive_number;			// vector 9: display current drive (format "Ad0:")
 	defw L05BE;							// vector 10: set DE to $2000, copy to page 4
 	defw L05C3;							// vector 11: set HL to $2000, copy to page 4
 	defw L05DD;							// vector 12: write data to file in page 4
 	defw L068F;							// vector 13: test if 32-bit value DEBC is zero
-	defw L0482;							// vector 14: format and display disk size
+	defw format_size_display;			// vector 14: format and display disk size
 
 L05BE:
 	ld de, $2000;						// set destination to start of divMMC window
@@ -1143,7 +1143,7 @@ L065B:
 
 L066B:
 	out (c), l;							// ensure destination page is selected
-	jp L051C;							// jump to cleanup and return routine
+	jp string_copy_complete;			// jump to cleanup and return routine
 
 L0670:
 	defb 0;								// null terminator / padding byte
@@ -1995,7 +1995,7 @@ L0A46:
 	ld a, ixh;							// get high byte of page settings
 	ld ixh, e;							// store call number in IXH
 	pop de;								// restore DE register
-	jp find_handle_with_setup;							// jump to handler (04_files.asm)
+	jp find_handle_with_setup;			// jump to handler (04_files.asm)
 	call L0A46;							// invoke file operation
 	ret c;								// return if error
 	push hl;							// save HL register
@@ -2157,7 +2157,7 @@ L0AFF:
 	ld iyl, c;							// save drive number
 
 L0B19:
-	call L04E7;							// initialize file handle (04_files.asm)
+	call validate_filename_buffer;		// initialize file handle (04_files.asm)
 	ret c;								// return if initialization failed
 	push de;							// save DE register
 
@@ -2185,7 +2185,7 @@ L0B2A:
 	ld a, ixl;							// get low byte of IX
 	ld ($3df8), a;						// save page settings
 	ld ($3df4), hl;						// save HL register
-	call memory_address_calc;							// call handler (04_files.asm)
+	call memory_address_calc;			// call handler (04_files.asm)
 	sub $18;							// subtract base offset (24) for handler index
 	ld l, (iy + _tv_flag);				// get TV flag for address calculation
 	ld h, (iy + _err_sp);				// get error stack pointer
@@ -2203,7 +2203,7 @@ L0B5A:
 	call L0B6E;							// call memory restoration routine
 	ld ixh, a;							// save result in IXH
 	ld a, 0;							// clear accumulator
-	out (mmcram), a;						// divMMC RAM page 0;
+	out (mmcram), a;					// divMMC RAM page 0;
 	ld a, ixh;							// restore result
 	pop iy;								// restore IY register
 	pop ix;								// restore IX register
@@ -2229,7 +2229,7 @@ L0B73:
 	and a;								// test file system type
 	jr z, L0BB8;						// jump if standard file system
 	ld b, a;							// save file system type
-	call find_handle_with_setup;							// call validation routine (04_files.asm)
+	call find_handle_with_setup;		// call validation routine (04_files.asm)
 	jr nc, L0B8F;						// continue if valid
 
 L0B8c:
@@ -2501,7 +2501,7 @@ L0D08:
 	jr c, L0D18;						// if less, branch to error handling
 	push ix;							// save IX register
 	pop hl;								// copy IX to HL
-	call syscall_reg_save;					// call system function dispatcher (06_disk.asm)
+	call syscall_reg_save;				// call system function dispatcher (06_disk.asm)
 	push hl;							// save result
 	pop ix;								// restore to IX
 	jp L1FFA;							// unmap and return
