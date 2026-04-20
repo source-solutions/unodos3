@@ -1551,7 +1551,7 @@ sub_32bit:
 	dec bc;								// decrement high 16 bits (BC) if borrow
 	ret;								// return to caller
 
-; 06_formatting.asm
+;;; 06_formatting.asm
 
 ;	// called from dirs.io
 ;	// output a string of characters, zero terminated
@@ -3883,40 +3883,40 @@ L14A0:
 
 ; // process current directory entry
 L14AA:
-	ld a, (hl);								// load first character of entry
-	and a;									// check if entry is empty (end of directory)
-	jr z, L1505;					// jump if end of directory
-	cp 229;									// check for deleted entry marker ($e5)
+	ld a, (hl);							// load first character of entry
+	and a;								// check if entry is empty (end of directory)
+	jr z, L1505;						// jump if end of directory
+	cp 229;								// check for deleted entry marker ($e5)
 	jr z, L14C3;						// jump if deleted entry
-	ld c, l;								// save current entry pointer in C
-	ld a, l;								// load entry pointer
-	add a, 11;								// add 11 to point to attributes byte
-	ld l, a;								// update pointer to attributes
-	ld a, (hl);								// load file attributes
-	ld l, c;								// restore entry pointer
-	cp 15;									// check for long filename entry ($0f)
-	jr nz, L14EA;					// jump if not long filename entry
+	ld c, l;							// save current entry pointer in C
+	ld a, l;							// load entry pointer
+	add a, 11;							// add 11 to point to attributes byte
+	ld l, a;							// update pointer to attributes
+	ld a, (hl);							// load file attributes
+	ld l, c;							// restore entry pointer
+	cp 15;								// check for long filename entry ($0f)
+	jr nz, L14EA;						// jump if not long filename entry
 
 ; // skip long filename entries
 L14BD:
-	ld bc, $20;								// load directory entry size (32 bytes)
-	add hl, bc;								// advance to next directory entry
-	jr L14A0;						// jump back to process next entry
+	ld bc, $20;							// load directory entry size (32 bytes)
+	add hl, bc;							// advance to next directory entry
+	jr L14A0;							// jump back to process next entry
 
 ; // handle deleted directory entry
 L14C3:
-	call L14C8;						// call deleted entry handler
-	jr L14BD;						// jump to skip entry
+	call L14C8;							// call deleted entry handler
+	jr L14BD;							// jump to skip entry
 
 ; // process deleted entry for reuse tracking
 L14C8:
-	bit 1, (iy + 52);						// check if already tracking deleted entry
-	ret nz;									// return if already tracking
-	set 1, (iy + 52);						// set deleted entry tracking flag
-	ld a, (ix + 6);							// load current entry number
-	ld (ix + 30), a;						// store as deleted entry number
-	ld a, (ix + 19);						// load current sector high
-	ld (ix + 31), a;						// store as deleted entry sector
+	bit 1, (iy + 52);					// check if already tracking deleted entry
+	ret nz;								// return if already tracking
+	set 1, (iy + 52);					// set deleted entry tracking flag
+	ld a, (ix + 6);						// load current entry number
+	ld (ix + 30), a;					// store as deleted entry number
+	ld a, (ix + 19);					// load current sector high
+	ld (ix + 31), a;					// store as deleted entry sector
 	call get_file_next_cluster;			// call file descriptor function
 	call L19D3;							// call position storage function
 	call get_file_sector_address;		// call sector calculation function
@@ -3925,22 +3925,22 @@ L14C8:
 
 ; // check file attributes and compare filenames
 L14EA:
-	ld e, a;								// store file attributes in E
-	ld a, (iy + 51);						// load file attribute filter
-	and a;									// check if filter is set
-	jr z, L14F4;					// jump if no filter
+	ld e, a;							// store file attributes in E
+	ld a, (iy + 51);					// load file attribute filter
+	and a;								// check if filter is set
+	jr z, L14F4;						// jump if no filter
 	and e;								// apply filter to file attributes
-	jr z, L14BD;					// skip entry if doesn't match filter
+	jr z, L14BD;						// skip entry if doesn't match filter
 
 ; // compare entry with search filename
 L14F4:
-	ld de, ($3c04);							// load search filename pointer
-	call compare_directory_entries;						// call filename comparison function
-	jr nz, L14BD;					// skip if no match
-	ld (ix + 28), l;				// store matched entry low address
-	ld (ix + 29), h;				// store matched entry high address
-	or a;							// clear carry flag (success)
-	ret;									// return with match found
+	ld de, ($3c04);						// load search filename pointer
+	call compare_directory_entries;		// call filename comparison function
+	jr nz, L14BD;						// skip if no match
+	ld (ix + 28), l;					// store matched entry low address
+	ld (ix + 29), h;					// store matched entry high address
+	or a;								// clear carry flag (success)
+	ret;								// return with match found
 
 ; // handle end of directory (file not found)
 L1505:

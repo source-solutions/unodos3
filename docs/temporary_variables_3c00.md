@@ -63,6 +63,71 @@ General purpose variables for loops and temporary data:
 - $3C20: Second counter for nested operations
 - $3C25: Current disk drive number (0-based)
 
+## Additional Temporary/System Variables in UnoDOS 3 Kernel
+
+### Memory Locations and Variables
+
+- **$3C00**  
+  - Used as a pointer for font/messages and to enable verbose mode.  
+  - Example: `ld hl, $3c00 ; enable verbose mode (point to font/messages)`
+
+- **mmc_1, mmc_2, mmc_3, mmc_sp**  
+  - Temporary storage for memory page configuration and stack pointer during MMC/divMMC operations.  
+  - Example:  
+    - `ld (mmc_2), hl ; save HL to MMC temporary storage`  
+    - `ld hl, (mmc_sp) ; load MMC stack pointer`
+
+- **x_ptr**  
+  - Pointer to a marker in BASIC, used for temporary storage of HL.  
+  - Example: `ld (x_ptr), hl ; save HL to ? marker pointer in BASIC`
+
+- **ch_add**  
+  - Pointer to the next character in a BASIC program.
+
+- **err_nr**  
+  - System variable for error number/status.
+
+- **keyboard_test_pattern**  
+  - Used for keyboard scanning routines.
+
+- **cmd_folder**  
+  - Holds the string "/dos/" to avoid keyword clashes.
+
+- **next_char_rst20, restart_20**  
+  - Used for interrupt/restart handling.
+
+- **sp, af, hl, bc, de, ix, iy**  
+  - Z80 register pairs, often used for temporary storage and parameter passing.
+
+- **mmcram, mmcdev**  
+  - I/O ports for divMMC RAM page and device selection.
+
+- **_flags, _err_nr, _newppc, _tv_flag, _err_sp**  
+  - System variables (often in IY-relative addressing) for flags, error numbers, file handles, etc.
+
+### General Patterns
+
+- **Stack Usage**  
+  - The stack pointer (`sp`) is frequently set to specific addresses (e.g., `$5e00`, `$3de8`) for system and user stack separation.
+- **Temporary Buffers**  
+  - HL, DE, and BC are often used as temporary buffers for data transfer, especially in block and file I/O routines.
+- **Page and Memory Management**  
+  - Variables like `mmc_1`, `mmc_2`, `mmc_3` are used to save/restore memory page states during bank switching.
+
+### Example Usage
+
+```assembly
+ld hl, $3c00        ; HL points to font/messages area (temporary)
+ld (mmc_2), hl      ; Save HL to MMC temporary storage
+ld hl, (mmc_sp)     ; Load MMC stack pointer
+ld (x_ptr), hl      ; Save HL to marker pointer in BASIC
+ld hl, (ch_add)     ; Get pointer to next character in BASIC program
+ld a, (err_nr)      ; Load error number
+```
+
+**Note:**
+This list is not exhaustive but covers the most prominent temporary and system variables used in the kernel source, especially those related to $3C00 and other workspace/system areas. For a complete list, review the `os.inc` and `io.inc` includes, as they may define additional system variables and workspace locations.
+
 ## Usage Notes
 
 - Variables marked as "Multi" may extend beyond their listed address
