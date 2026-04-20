@@ -3891,12 +3891,13 @@ L1524:
 	ld ($3c1f), bc;						// store in first counter variable
 	ld ($3c20), bc;						// store in second counter variable
 
+; // setup directory buffer and call system function
 L152F:
-	ld de, $2c00;						// 
-	push de;							// 
-	rst $30;							// 
-	dec b;								// 
-	pop hl;								// 
+	ld de, $2c00;						// load directory buffer address
+	push de;							// save buffer address on stack
+	rst $30;							// call system function (disk operation)
+	dec b;								// decrement operation parameter
+	pop hl;								// restore buffer address to HL
 	ld (iy + 52), a;					// store operation flags
 	rra;								// rotate right to check bit 0
 	jr nc, L1555;						// jump if directory operation
