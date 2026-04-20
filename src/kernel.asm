@@ -7622,61 +7622,66 @@ L3432:
 	ld c, a;							// 
 	pop hl;								// 
 	pop de;								// 
-	ret c;								// 
-	rst $30;							// 
-	ld b, $eb;							// 
-	ld a, 1;							// 
-	or a;								// 
-	ret;								// 
+	ret c;								// return if error occurred
+	rst $30;							// call ROM calculator routine
+	ld b, $eb;							// load completion code
+	ld a, 1;							// set success flag
+	or a;								// clear carry flag (success)
+	ret;								// return from directory processing
 
+; // enhanced directory processing function
 L347B:
-	ld a, ($2D20);						// 
-	bit 4, a;							// 
-	jr nz, L34B1;						// 
-	ld hl, $3C1F;						// 
-	push de;							// 
-	rst $30;							// 
-	ld bc, $0df7;						// 
-	jr z, L3497;						// 
-	call L1265;							// 
-	ld hl, $2600;						// 
-	push hl;							// 
-	call L1096;							// 
-	pop hl;								// 
+	ld a, ($2D20);						// load file attributes from buffer
+	bit 4, a;							// check directory attribute flag (bit 4)
+	jr nz, L34B1;						// jump to directory handler if set
+	ld hl, $3C1F;						// load date/time buffer address
+	push de;							// save output buffer pointer
+	rst $30;							// call ROM calculator routine
+	ld bc, $0df7;						// load date validation code
+	jr z, L3497;						// jump if date validation passed
+	call L1265;							// call date conversion function
+	ld hl, $2600;						// load date output buffer
+	push hl;							// save buffer pointer
+	call L1096;							// call date formatting function
+	pop hl;								// restore buffer pointer
 
+; // date processing completion handler
 L3497:
-	pop de;								// 
-	ret c;								// 
-	push de;							// 
-	call L18B3;							// 
-	pop de;								// 
-	jr nz, L34B1;						// 
-	ld hl, $2d20;						// 
-	ld a, $40;							// 
-	or (hl);							// 
-	ld (hl), a;							// 
-	ld hl, $260f;						// 
-	ld bc, 8;							// 
+	pop de;								// restore output buffer pointer
+	ret c;								// return if date processing failed
+	push de;							// save output buffer pointer
+	call L18B3;							// call date validation function
+	pop de;								// restore output buffer pointer
+	jr nz, L34B1;						// jump to error handler if validation failed
+	ld hl, $2d20;						// load file attributes buffer
+	ld a, $40;							// load valid file flag (bit 6)
+	or (hl);							// combine with existing attributes
+	ld (hl), a;							// store updated attributes
+	ld hl, $260f;						// load formatted date buffer
+	ld bc, 8;							// load date field size (8 bytes)
 
+; // date field copy and completion
 L34AD:
-	ldir;								// 
-	xor a;								// 
-	ret;								// 
+	ldir;								// copy date field to output buffer
+	xor a;								// clear accumulator (success code)
+	ret;								// return from date processing
 
+; // directory or invalid date handler
 L34B1:
-	ld a, $ff;							// 
-	ld (de), a;							// 
-	inc de;								// 
-	inc a;								// 
-	ld (de), a;							// 
-	push de;							// 
-	pop hl;								// 
-	inc de;								// 
-	ld bc, 5;							// 
-	jr L34AD;							// 
+	ld a, $ff;							// load invalid date marker (255)
+	ld (de), a;							// store invalid marker in output
+	inc de;								// increment output pointer
+	inc a;								// increment to 0 (next invalid marker)
+	ld (de), a;							// store second invalid marker
+	push de;							// save output pointer
+	pop hl;								// transfer to HL for copying
+	inc de;								// increment destination pointer
+	ld bc, 5;							// load remaining field size (5 bytes)
+	jr L34AD;							// jump to field copy completion
 
+; // character copy function for filename processing
 L34BF:
-	ld a, (hl);							// 
+	ld a, (hl);							// load character from source filename
 	inc hl;								// move to next filename character
 	cp ' ';								// $20
 	jr z, L34C7;						// skip if space character (padding)
@@ -7970,11 +7975,12 @@ L3640:
 	call L163E;							// call directory access
 	call L367F;							// call truncation completion
 
+; // file operation error handler
 L3668:
-	push af;							// 
-	call L168F;							// 
-	pop af;								// 
-	ret;								// 
+	push af;							// save error code and flags
+	call L168F;							// call file descriptor cleanup
+	pop af;								// restore error code and flags
+	ret;								// return with original error condition
 
 ; // file write operation with validation
 L366D:
