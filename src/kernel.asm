@@ -238,7 +238,7 @@ delay_loop:
 	ld a, $7f;							// keyboard row for SPACE key
 	in a, (ula);						// read keyboard row
 	rra;								// rotate right to test SPACE in bit 0
-	jp c, L0251;						// if SPACE not pressed, exit to BASIC
+	jp c, exit_to_basic;				// if SPACE not pressed, exit to BASIC
 	;									// which sets HL to 1 then exits
 
 ;	// start of full initialization - clear screen to black
@@ -333,9 +333,9 @@ memory_init_complete:
 	ld hl, cr_string;					// point to "detecting devices" message
 	call pr_str;						// print device detection message
 	ld a, $80;							// device ID or test parameter
-	call L027D;							// device detection/initialization routine
+	call show_device_status;			// device detection/initialization routine
 	ld a, $88;							// second device ID or test parameter
-	call L027D;							// detect/initialize second device
+	call show_device_status;			// detect/initialize second device
 	ld hl, L0670;						// point to "mounting drives" message
 	call pr_str;						// print drive mounting message
 	call disk_mount_init;				// mount drives and setup filesystem
@@ -344,14 +344,14 @@ memory_init_complete:
 	ld ($2d46), a;						// store in another configuration location
 	ld hl, sys_filename;				// point to "unodos" system filename
 	call display_filename;				// setup filename for loading
-	call L02C5;							// attempt to load main system file
+	call load_main_system;				// attempt to load main system file
 	push af;							// save load result flags
 	call file_test;						// test if system file loaded correctly
 	pop af;								// restore load result flags
 	jr c, wait_space_release;			// if load failed, skip to user input wait
 	ld hl, msg_nmi;						// point to NMI system filename
 	call display_filename;				// setup NMI filename
-	call L02B3;							// attempt to load NMI handler
+	call load_nmi_handler;				// attempt to load NMI handler
 	call show_result;					// show OK or ERROR for NMI system file
 	jr nz, wait_space_release;			// if NMI load failed, skip to user input
 	ld a, ($2e8c);						// check memory configuration result
@@ -359,7 +359,7 @@ memory_init_complete:
 	jr nz, wait_space_release;			// if memory error, skip to user input
 	ld hl, msg_betadisk;				// point to "betadisk" system filename
 	call display_filename;				// setup betadisk filename
-	call L02A1;							// attempt to load betadisk system
+	call load_system_page3;				// attempt to load betadisk system
 	push af;							// save load result
 	call nc, L03C4;						// if load successful, initialize betadisk
 	pop af;								// restore load result
@@ -378,19 +378,19 @@ mute_and_exit:
 	call mute_psg;						// turn off PSG sound generators
 
 	org $024b
-L024B:
+system_delay:
 	ld de, $07d0;						// load delay value (2000 decimal)
-	call L0297;							// delay routine for system settling
+	call delay_routine;					// delay routine for system settling
 
 	org $0251
-L0251:
+exit_to_basic:
 	ld hl, $0001;						// BASIC ROM entry point after initialization
 	jp L1FFB;							// unmap divMMC and jump into BASIC ROM
 
 ;;; 03_screen.asm
 
 display_filename:
-	call L02EF;							// construct full system file path with extension
+	call build_sys_path;				// construct full system file path with extension
 	push hl;							// save path pointer
 	ld de, 5;							// offset to filename portion (skip "/dos/")
 	add hl, de;							// point to filename part
@@ -401,13 +401,13 @@ display_filename:
 	org $0272
 show_result:
 	ld hl, msg_ok;						// point to "OK" message
-	jr nc, L027A;						// jump if no carry (success)
+	jr nc, print_result_msg;			// jump if no carry (success)
 	ld hl, msg_failed;					// else point to error/failed message
 
-L027A:
+print_result_msg:
 	jp pr_str;							// print the success/error message
 
-L027D:
+show_device_status:
 	ld de, $2df2;						// point to device info buffer
 	rst $08;							// call UnoDOS API
 	defb disk_status;					// get disk/device status
@@ -424,19 +424,19 @@ L027D:
 	ret;								// return to caller
 
 	org $0297
-L0297:
+delay_routine:
 	ld b, $ff;							// delay loop counter (255 iterations)
 
-L0299:
-	djnz L0299;							// inner delay loop (256 iterations)
+delay_inner_loop:
+	djnz delay_inner_loop;				// inner delay loop (256 iterations)
 	dec de;								// decrement outer delay counter
 	ld a, e;							// get low byte
 	or d;								// OR with high byte to test for zero
-	jr nz, L0297;						// repeat until DE reaches zero
+	jr nz, delay_routine;				// repeat until DE reaches zero
 	ret;								// return after delay complete
 
-L02A1:
-	call L02E8;							// open file for reading
+load_system_page3:
+	call open_file_read;				// open file for reading
 	ret c;								// return if file open failed
 	push af;							// save file handle
 	ld a, 3;							// select divMMC page 3
@@ -444,25 +444,25 @@ L02A1:
 	pop af;								// restore file handle
 	ld hl, $2000;						// destination: start of divMMC window
 	ld bc, $1c00;						// byte count: 7168 bytes (7KB)
-	jr L02BD;							// continue to file read routine
+	jr read_file_data;					// continue to file read routine
 
-L02B3:
-	call L02E8;							// open file for reading
+load_nmi_handler:
+	call open_file_read;				// open file for reading
 	ret c;								// return if file open failed
 	ld hl, $2f00;						// destination: $2F00 (NMI handler area)
 	ld bc, $0e00;						// byte count: 3584 bytes
 
-L02BD:
+read_file_data:
 	ld e, a;							// save file handle in E
 	push de;							// save file handle on stack
 	rst $08;							// call UnoDOS API
 	defb f_read;						// read from file
 	pop de;								// restore file handle
 	ld a, e;							// get file handle back
-	jr L02E1;							// continue to file close routine
+	jr close_file_page0;				// continue to file close routine
 
-L02C5:
-	call L02E8;							// open main system file for reading
+load_main_system:
+	call open_file_read;				// open main system file for reading
 	ret c;								// return if file open failed
 	push af;							// save file handle
 	ld hl, $2000;						// destination: start of divMMC window
@@ -479,36 +479,36 @@ L02C5:
 	defb f_read;						// read upper part of system file
 	pop af;								// restore file handle
 
-L02E1:
+close_file_page0:
 	rst $08;							// call UnoDOS API
 	defb f_close;						// close the file
 	ld a, 0;							// select divMMC page 0
 	out (mmcram), a;					// switch back to page 0
 	ret;								// return to caller
 
-L02E8:
+open_file_read:
 	ld a, $24;							// file mode: read-only
 	ld b, 1;							// drive number (drive 1)
 	rst $08;							// call UnoDOS API
 	defb f_open;						// open file for reading
 	ret;								// return with file handle in A or carry set if error
 
-L02EF:
-	call L0305;							// construct base path ("/dos/[filename].")
+build_sys_path:
+	call build_base_path;				// construct base path ("/dos/[filename].")
 	ld hl, system_info;					// point to "sys" extension string
 
-L02F5:
+add_extension:
 	call L0598;							// copy extension string to path
 	ld (de), a;							// store null terminator
 	ld hl, $2dce;						// return pointer to completed path
 	ret;								// return with full path in HL
 
-L02FD:
-	call L0305;							// construct base path ("/dos/[filename].")
+build_alt_sys_path:
+	call build_base_path;				// construct base path ("/dos/[filename].")
 	ld hl, system_info;					// point to "sys" extension string
-	jr L02F5;							// continue to add extension
+	jr add_extension;					// continue to add extension
 
-L0305:
+build_base_path:
 	push hl;							// save filename pointer
 	ld de, $2dce;						// destination buffer for full path
 	ld hl, sys_folder;					// source: "/dos" string
@@ -5737,7 +5737,7 @@ L1F32:
 ;	org $1f3f
 file_test:
 	ld hl, msg_ok;						// point to OK message
-	jp nc, L027A;						// jump if no error, display OK message
+	jp nc, print_result_msg;			// jump if no error, display OK message
 	ld hl, get_rom_byte;				// source: ROM byte getter routine
 	ld de, $5b00;						// destination: buffer in high memory
 	ld bc, 4;							// byte count (copy 4 bytes of routine)
@@ -5807,7 +5807,7 @@ get_rom_byte:
 	org $1FEE
 	jp pr_msg;							// v_pr_msg - message print routine (07_error.asm)
 	org $1FF1
-	jp L0297;							// V0297 - vector to system function
+	jp delay_routine;					// V0297 - vector to system function
 
 	org $1ff4
 L1FF4:
@@ -6280,7 +6280,7 @@ L22A5:
 	cp $FF;								// check for error code $FF
 	jp z, full_init;					// jump to error handler if found
 	cp $FE;								// check for error code $FE
-	jp z, L0251;						// jump to error handler if found
+	jp z, exit_to_basic;				// jump to error handler if found
 	cp $FC;								// check for boundary code $FC
 	jr c, L22C7;						// jump to normal handler if less
 	ld de, $225c;						// load error message pointer
@@ -6396,7 +6396,7 @@ L2357:
 
 L2362:
 	ld (L2019), hl;						// save current address
-	call L02FD;							// call system function
+	call build_alt_sys_path;			// call system function
 	ld a, $24;							// load file handle $24
 	ld b, 1;							// set mode to read
 	rst $08;							// call DOS function
