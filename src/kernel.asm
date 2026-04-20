@@ -2364,7 +2364,7 @@ error_handler_entry:
 	ld a, (err_nr);						// get error number
 	and a;								// test if zero (no error)
 	ld hl, ($3de8);						// get default message address
-	jr z, L0C82;						// if no error, print default message
+	jr z, print_error_message;			// if no error, print default message
 	ld b, a;							// save error number in B
 
 handle_error_message:
@@ -2376,35 +2376,35 @@ handle_error_message:
 	push bc;							// save error number
 	call L2357;							// find error message
 	pop bc;								// restore error number
-	jr nc, L0C78;						// if message found, use it
+	jr nc, use_basic_error;				// if message found, use it
 	cp $0c;								// check for specific error code
 	jr nz, handle_unknown_error;		// if not, try generic error
 	ld hl, $0caa;						// point to "Too many open files" message
-	jr L0C82;							// print message
+	jr print_error_message;				// print message
 
 handle_unknown_error:
 	ld a, b;							// get error number
 	cp 1;								// check if error number is 1
-	jr z, L0C78;						// if so, use BASIC ROM message
+	jr z, use_basic_error;				// if so, use BASIC ROM message
 	ld hl, $0c9c;						// point to "UnoDOS error #" message
 	call v_pr_msg;						// print error prefix
 	ld l, b;							// put error number in L
 	call format_number_suppress_zeros;	// print error number (05_api.asm)
-	jr L0C85;							// restore page and exit
+	jr restore_page_and_exit;			// restore page and exit
 
-L0C78:
+use_basic_error:
 	ld hl, ($2017);						// get BASIC ROM error message table
 
-L0C7B:
+find_error_message:
 	bit 7, (hl);						// check if end of message
 	inc hl;								// advance to next character
-	jr z, L0C7B;						// continue until end of message
-	djnz L0C7B;							// repeat for B messages
+	jr z, find_error_message;			// continue until end of message
+	djnz find_error_message;			// repeat for B messages
 
-L0C82:
+print_error_message:
 	call v_pr_msg;						// print error message
 
-L0C85:
+restore_page_and_exit:
 	pop af;								// restore divMMC page
 	out (mmcram), a;					// set divMMC RAM page
 	inc sp;								// adjust stack pointer (skip return address)
@@ -2432,7 +2432,7 @@ pr_msg:
 	str "Too many open files";			// RASM - string with terminal bit 7 set
 
 ;	// jumped from RST $18 (CALLBAS)
-L0CBD:
+command_dispatcher:
 	ld ($3df2),de;						// save DE as it will be used right now
 	ex (sp),hl;							// HL = return address from the stack
 	ld e, (hl);							// get 16-bit value
@@ -2478,27 +2478,27 @@ char_processing_routine:
 	inc hl;								// adjust return address
 	push hl;							// put back on stack
 	cp $0ff;							// COPY command?
-	jr nz, L0D08;						// if not, continue normally
+	jr nz, process_system_command;		// if not, continue normally
 	ld a, h;							// check address high byte
 	cp '@';								// check if >= $4000
-	jr c, L0D05;						// if < $4000, continue
+	jr c, set_error_1;					// if < $4000, continue
 	ld sp, (err_sp);					// reset error stack
 	ld a, ($3df8);						// get saved page
 	out (mmcram), a;					// set divMMC RAM page
 
-L0CFF:
+return_to_basic:
 	ld hl, $16c5;						// BASIC command loop address
 	jp L1FFB;							// unmap and return to BASIC
 
 ;;; 09_memory.asm
 
-L0D05:
+set_error_1:
 	ld a, 1;							// set error code to 1
 	rst $20;							// call error handler
 
-L0D08:
+process_system_command:
 	cp $1b;								// check if command >= $1B
-	jr c, L0D18;						// if less, branch to error handling
+	jr c, check_error_flag;				// if less, branch to error handling
 	push ix;							// save IX register
 	pop hl;								// copy IX to HL
 	call syscall_reg_save;				// call system function dispatcher (06_disk.asm)
@@ -2506,37 +2506,37 @@ L0D08:
 	pop ix;								// restore to IX
 	jp L1FFA;							// unmap and return
 
-L0D18:
+check_error_flag:
 	bit 7, (iy + _err_nr);				// check if error flag set
 
-L0D1c:
+store_error_number:
 	ld (err_nr), a;						// store error number
 	ld hl, (ch_add);					// get current channel address
 	ld (x_ptr), hl;						// save in x_ptr
-	jp z, L0D72;						// if no error flag, jump to cleanup
+	jp z, cleanup_and_exit;				// if no error flag, jump to cleanup
 	cp $0b;								// check for specific error codes
-	jr z, L0D39;						// jump if error code 11
+	jr z, handle_specific_errors;		// jump if error code 11
 	cp $0e;								// check if error code 14
-	jr z, L0D39;						// jump if error code 14
+	jr z, handle_specific_errors;		// jump if error code 14
 	cp $17;								// check if error code 23
-	jr z, L0D39;						// jump if error code 23
+	jr z, handle_specific_errors;		// jump if error code 23
 	cp 1;								// check for error code 1
-	jp nz, L0D72;						// if not 1, go to cleanup
+	jp nz, cleanup_and_exit;			// if not 1, go to cleanup
 
-L0D39:
+handle_specific_errors:
 	bit 5, (iy + 55);					// check system flag
-	jp nz, L0D72;						// if set, go to cleanup
+	jp nz, cleanup_and_exit;			// if set, go to cleanup
 	ld de, (e_line);					// get end of program line
 	and a;								// clear carry flag
 	sbc hl, de;							// compare current position with end
-	jr c, L0D52;						// if before end, branch
+	jr c, process_before_end;			// if before end, branch
 	rst $18;							// call BASIC ROM routine
 	defw e_line_no;						// get line number at end
 	ld hl, (ch_add);					// get current address
 	dec hl;								// back up one position
-	jr L0D5B;							// continue processing
+	jr process_statement;				// continue processing
 
-L0D52:
+process_before_end:
 	ld hl, (ppc);						// get program counter
 	rst $18;							// call BASIC ROM routine
 	defw line_addr;						// get address of line
@@ -2544,7 +2544,7 @@ L0D52:
 	inc hl;								// skip length
 	inc hl;								// point to first statement
 
-L0D5B:
+process_statement:
 	ld d, (iy + _subppc);				// get sub-statement counter
 	ld e, 0;							// clear E
 	rst $18;							// call BASIC ROM routine
@@ -2560,7 +2560,7 @@ L0D5B:
 	ld (bc), a;							// store accumulator at BC address
 	call L2014;							// call cleanup routine
 
-L0D72:
+cleanup_and_exit:
 	ld a, ($3df8);						// get saved divMMC page
 	out (mmcram), a;					// set divMMC RAM page
 	res 3, (iy + _tv_flag);				// clear TV flag bit 3
@@ -2575,10 +2575,10 @@ L0D72:
 	ld hl, $1b7d;						// NMI service routine address
 	jp L1FFB;							// unmap and jump to NMI routine
 
-L0D94:
-	call L0DCF;							// call memory cleanup routine
+memory_init_routine:
+	call read_file_to_page2;				// call memory cleanup routine
 	jp c, $20;							// jump if carry set
-	call L0DEB;							// call additional cleanup
+	call open_screen_channel;			// call additional cleanup
 	ld hl, ($2e46);						// get memory pointer
 	ld a, 2;							// select page 2
 	out (mmcram), a;					// switch to divMMC page 2
@@ -2589,15 +2589,17 @@ L0D94:
 	out (mmcram), a;					// divMMC RAM page 0
 	jp L24CD;							// jump to completion routine
 
-L0DB4:
+memory_cleanup_with_hl:
 	push hl;							// save HL register
-	call L0DCF;							// call memory cleanup routine
+	call read_file_to_page2;			// call memory cleanup routine
 	pop hl;								// restore HL register
-	jr c, L0DC2;						// jump to cleanup if error
+	jr c, cleanup_restore_page;			// jump to cleanup if error
 	ld a, 2;							// select divMMC page 2
 	out (mmcram), a;					// divMMC RAM page 2
 	call L2000;							// call system routine
 
+; // cleanup and restore divMMC memory page
+cleanup_restore_page:
 L0DC2:
 	push af;							// save accumulator flags
 	ld a, 0;							// select divMMC page 0
@@ -2607,6 +2609,8 @@ L0DC2:
 	pop af;								// restore accumulator flags
 	ret;								// return to caller
 
+; // read file data to page 2 and close file
+read_file_to_page2:
 L0DCF:
 	ld b, a;							// save file handle in B
 	ld a, 2;							// select divMMC page 2
@@ -2631,12 +2635,16 @@ L0DCF:
 
 ;;; 10_utils.asm
 
+; // open screen channel for output
+open_screen_channel:
 L0DEB:;									// called from dirs.io
 	ld a, 2;							// screen
 	rst $18;							// call BASIC ROM routine
 	defw chan_open;						// open channel function
 	ret;								// return to caller
 
+; // data area or function parameters
+data_area_parameters:
 L0DF1:
 	ld d, (hl);							// load D from address pointed by HL
 	ld c, $b2;							// load immediate value $B2 into C
@@ -2644,7 +2652,7 @@ L0DF1:
 	adc a, a;							// add A to itself with carry
 	ld d, $97;							// load immediate value $97 into D
 	ld d, $de;							// load immediate value $DE into D
-	jr L0E40;							// jump to L0E40
+	jr format_output_routine;			// jump to L0E40
 	ld sp, $369a;						// set stack pointer to $369A
 	add a, $19;							// add immediate value $19 to A
 	rst $38;							// restart at vector $38
@@ -2675,17 +2683,19 @@ L0DF1:
 	ld c, $c9;							// load immediate value $C9 into C
 	ex de, hl;							// exchange DE and HL
 	ld a, b;							// copy B to A register
-	call L0E4C;							// call function at L0E4C
+	call output_byte_to_file;			// call function at L0E4C
 	ld a, d;							// copy D to A register
-	call L0E4C;							// call function at L0E4C
+	call output_byte_to_file;			// call function at L0E4C
 	ld a, e;							// copy E to A register
-	call L0E4C;							// call function at L0E4C
+	call output_byte_to_file;			// call function at L0E4C
 	push iy;							// save IY on stack
 	pop hl;								// restore into HL
 	ld l, $18;							// load immediate value $18 into L
 	ld bc, 4;							// load immediate value 4 into BC
 	rst $30;							// restart at vector $30
 
+; // format output routine with parameters
+format_output_routine:
 L0E40:
 	ld b, $2e;							// load immediate value $2E into B
 	inc b;								// increment B register
@@ -2698,6 +2708,8 @@ L0E40:
 	or a;								// clear carry flag (OR A with itself)
 	ret;								// return to caller
 
+; // output byte to file handle
+output_byte_to_file:
 L0E4C:
 	ld hl, $3dfa;						// load HL with address $3DFA
 	ld (hl), a;							// store A at address HL
@@ -2705,7 +2717,7 @@ L0E4C:
 	rst $30;							// restart at vector $30
 	ld b, $c9;							// load B with immediate value $C9
 	push bc;							// save BC on stack
-	call L0E6D;							// call function at L0E6D
+	call search_free_memory;			// call function at L0E6D
 	pop bc;								// restore BC from stack
 	ret c;								// return if carry set
 	push hl;							// save HL on stack
@@ -2717,29 +2729,37 @@ L0E4C:
 	ld (hl), e;							// store E at address HL
 	inc l;								// increment L register
 	ld (hl), d;							// store D at address HL
-	call L0E80;							// call function at L0E80
+	call validate_fs_structure;			// call function at L0E80
 	ld a, (iy + _flags);				// load A from IY+flags offset
 	ret;								// return to caller
 
+; // search for free memory block
+search_free_memory:
 L0E6D:
 	ld hl, $2000;						// load HL with address $2000
 	ld b, 4;							// load B with counter value 4
 
+; // memory search loop continuation
+memory_search_loop:
 L0E72:
 	ld a, (hl);							// load A with value at address HL
 	and a;								// test A (check if zero)
 	ret z;								// return if zero
 	inc h;								// increment H register 
-	djnz L0E72;							// decrement B and jump if not zero
+	djnz memory_search_loop;			// decrement B and jump if not zero
 	scf;								// set carry flag
 	ret;								// return to caller
 
+; // clear error and set carry flag
+clear_error_set_carry:
 L0E7A:
 	xor a;								// clear A register (set to 0)
 	ld (iy + _err_nr), a;				// clear error number in IY
 	scf;								// set carry flag
 	ret;								// return to caller
 
+; // validate file system structure and data
+validate_fs_structure:
 L0E80:
 	ld hl, $2d00;						// load HL with address $2D00
 	ld bc, 0;							// clear BC register pair
@@ -2747,24 +2767,24 @@ L0E80:
 	push hl;							// save HL on stack
 	call L1096;							// call function at L1096
 	pop hl;								// restore HL from stack
-	jr c, L0E7A;						// jump to error handler if carry
+	jr c, clear_error_set_carry;		// jump to error handler if carry
 	inc h;								// increment H register
 	ld l, $fe;							// load L with value $FE
 	ld a, (hl);							// load A from address HL
 	inc l;								// increment L register
 	and (hl);							// AND A with value at HL
-	jr nz, L0E7A;						// jump to error if not zero
+	jr nz, clear_error_set_carry;		// jump to error if not zero
 	dec h;								// decrement H register
 	ld l, $0b;							// load L with value $0B
 	ld a, (hl);							// load A from address HL
 	inc l;								// increment L register
 	or (hl);							// OR A with value at HL
 	cp 2;								// compare A with 2
-	jr nz, L0E7A;						// jump to error if not equal
+	jr nz, clear_error_set_carry;		// jump to error if not equal
 	ld l, $10;							// load L with value $10
 	ld a, (hl);							// load A from address HL
 	cp 2;								// compare A with 2
-	jr nz, L0E7A;						// jump to error if not equal
+	jr nz, clear_error_set_carry;		// jump to error if not equal
 	ld hl, $2d00;						// load HL with address $2D00
 	ld l, $13;							// load L with value $13
 	ld e, (hl);							// load E from address HL
@@ -2772,13 +2792,15 @@ L0E80:
 	ld d, (hl);							// load D from address HL
 	ld a, e;							// copy E to A
 	or d;								// OR A with D
-	jr nz, L0EBF;						// jump if not zero
+	jr nz, process_fs_data;				// jump if not zero
 	ld l, $20;							// load L with value $20
 	rst $30;							// restart at vector $30
 	ld bc, $70fd;						// load BC with value $70FD
 	dec de;								// decrement DE register pair
 	ld (iy + 26), c;					// store C at IY+26
 
+; // process filesystem data and parameters
+process_fs_data:
 L0EBF:
 	ld (iy + 25), d;					// store D at IY+25
 	ld (iy + 24), e;					// store E at IY+24
@@ -2794,7 +2816,7 @@ L0EBF:
 	ld l, $3a;							// point to memory location $3A
 	ld a, (hl);							// load value from memory address HL
 	cp '2';								// $50
-	jr z, L0E7A;						// jump if character is '2'
+	jr z, clear_error_set_carry;		// jump if character is '2'
 	dec l;								// decrement L to previous memory location
 	ld a, (hl);							// load value from new memory address
 	ld l, $36;							// point to memory location $36
@@ -6539,7 +6561,7 @@ L241B equ $241b
 ; Function: Process command and handle errors
 	call L24C1;							// call command processor
 	call L242E;							// call error handler
-	jp nc, L0D94;						// jump if no error
+	jp nc, memory_init_routine;			// jump if no error
 	cp 5;								// check for specific error code
 	jp nz, restart_20;					// restart system if not error 5
 	ld a, $16;							// load error code $16
@@ -6594,7 +6616,7 @@ L245A:
 	inc b;								// increment B register
 	pop hl;								// restore buffer address to HL
 	pop af;								// restore accumulator
-	jp L0DB4;							// jump to completion handler
+	jp memory_cleanup_with_hl;			// jump to completion handler
 
 ; Function: Process path string with length check
 L2475:
