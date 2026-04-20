@@ -7178,20 +7178,20 @@ L31D1:
 	nop;								// padding/alignment
 	call L115C;							// call file descriptor function
 	call L1A07;							// call file processing function
-	ld a, (ix + $06);					// 
-	ld ($3c23), a;						// 
-	ld l, (ix + $1C);					// 
-	ld h, (ix + $1D);					// 
-	ld de, $2d00;						// 
-	ld bc, $20;							// 
-	ldir;								// 
-	pop hl;								// 
-	ld a, $80;							// 
-	call L152F;							// 
-	jr c, L3235;						// 
-	ld a, $12;							// 
-	scf;								// 
-	jr L32A4;							// 
+	ld a, (ix + $06);					// load drive number from file descriptor
+	ld ($3c23), a;						// save drive number to temporary storage
+	ld l, (ix + $1C);					// load directory entry address low byte
+	ld h, (ix + $1D);					// load directory entry address high byte
+	ld de, $2d00;						// load directory buffer address
+	ld bc, $20;							// load directory entry size (32 bytes)
+	ldir;								// copy directory entry to buffer
+	pop hl;								// restore HL register from stack
+	ld a, $80;							// load file lookup operation mode
+	call L152F;							// call file existence check function
+	jr c, L3235;						// jump to create file if not found
+	ld a, $12;							// load error code 18 (file already exists)
+	scf;								// set carry flag (error condition)
+	jr L32A4;							// jump to error return
 
 L3235:
 	cp 5								// check for error code 5 (access denied)
@@ -7280,88 +7280,94 @@ L32BC:
 	call L163E;							// call directory sector read function
 	ld l, (ix + $1C);					// load low byte of directory entry pointer
 	ld h, (ix + $1D);					// load high byte of directory entry pointer
-	ld a, $0b;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	pop bc;								// 
-	ld a, b;							// 
-	rra;								// 
-	ccf;								// 
-	rla;								// 
-	and c;								// 
-	ld b, a;							// 
-	ld a, c;							// 
-	and $27;							// 
-	cpl;								// 
-	and (hl);							// 
-	or b;								// 
-	and $37;							// 
-	ld (hl), a;							// 
-	call L17E7;							// 
-	ret c;								// 
-	jp L10F3;							// 
+	ld a, $0b;							// offset to file attributes byte
+	add a, l;							// add offset to entry pointer
+	ld l, a;							// update pointer to attributes
+	pop bc;								// restore BC register (attribute flags)
+	ld a, b;							// load attribute mask from B
+	rra;								// rotate right to position bits
+	ccf;								// complement carry flag
+	rla;								// rotate left to restore position
+	and c;								// mask with attribute values
+	ld b, a;							// store masked attributes
+	ld a, c;							// load attribute values
+	and $27;							// mask valid attribute bits
+	cpl;								// complement to create clear mask
+	and (hl);							// clear specified attributes
+	or b;								// set new attributes
+	and $37;							// mask to valid attribute range
+	ld (hl), a;							// store modified attributes
+	call L17E7;							// call directory sector write function
+	ret c;								// return if error writing directory
+	jp L10F3;							// jump to file descriptor cleanup
 
+; // validate filename against special characters
 L32E7:
-	ld hl, $2c00;						// 
-	ld a, (hl);							// 
-	cp '/';								// $2f
-	jr nz, L32F0;						// 
-	inc hl;								// 
+	ld hl, $2c00;						// load filename buffer address
+	ld a, (hl);							// load first character
+	cp '/';								// check for root directory marker ($2f)
+	jr nz, L32F0;						// jump if not root path
+	inc hl;								// skip root marker
 
+; // check for invalid filename patterns
 L32F0:
-	ld a, (hl);							// 
-	cp '.';								// $2e
-	jr z, L32F7;						// 
-	or a;								// 
-	ret nz;								// 
+	ld a, (hl);							// load filename character
+	cp '.';								// check for dot character
+	jr z, L32F7;						// jump if dot (invalid pattern)
+	or a;								// check if end of filename
+	ret nz;								// return if valid filename
 
+; // handle invalid filename error
 L32F7:
-	ld a, 8
-	scf;								// 
-	ret;								// 
+	ld a, 8;							// load error code 8 (invalid filename)
+	scf;								// set carry flag (error condition)
+	ret;								// return with error
 
-	ld a, $80;							// 
-	call L1524;							// 
-	jr c, L3306;						// 
+	; // create directory function
+	ld a, $80;							// load directory operation code
+	call L1524;							// call file lookup function
+	jr c, L3306;						// jump if file lookup failed
 
+; // directory already exists error
 L3302:
-	ld a, $12;							// 
-	scf;								// 
-	ret;								// 
+	ld a, $12;							// load error code 18 (directory exists)
+	scf;								// set carry flag (error condition)
+	ret;								// return with error
 
+; // handle file lookup error codes
 L3306:
-	cp $11;								// 
-	jr z, L3302;						// 
-	cp 5;								// 
-	scf;								// 
-	ret nz;								// 
-	call L19FA;							// 
-	push bc;							// 
-	push de;							// 
-	call L3348;							// 
-	pop de;								// 
-	pop bc;								// 
-	ret c;								// 
-	push bc;							// 
-	push de;							// 
-	ld de, $2d00;						// 
-	ld hl, $33a2;						// 
-	exx;								// 
-	call L19FA;							// 
-	exx;								// 
-	call L336D;							// 
-	ex de, hl;							// 
-	exx;								// 
-	pop de;								// 
-	pop bc;								// 
-	exx;								// 
-	ld hl, $33a1;						// 
-	call L336D;							// 
-	ld d, h;							// 
-	ld e, l;							// 
-	inc de;								// 
-	xor a;								// 
-	ld (hl), a;							// 
+	cp $11;								// check for error code 17 (file not found)
+	jr z, L3302;						// jump to error if found (should not exist)
+	cp 5;								// check for error code 5 (access denied)
+	scf;								// set carry flag (error condition)
+	ret nz;								// return if other error
+	call L19FA;							// call file buffer preparation function
+	push bc;							// save BC register
+	push de;							// save DE register
+	call L3348;							// call directory creation function
+	pop de;								// restore DE register
+	pop bc;								// restore BC register
+	ret c;								// return if creation failed
+	push bc;							// save BC register again
+	push de;							// save DE register again
+	ld de, $2d00;						// load directory buffer address
+	ld hl, $33a2;						// load template address
+	exx;								// exchange register sets
+	call L19FA;							// call buffer function with alt registers
+	exx;								// restore register sets
+	call L336D;							// call directory entry setup function
+	ex de, hl;							// exchange DE and HL
+	exx;								// exchange register sets
+	pop de;								// restore DE register
+	pop bc;								// restore BC register
+	exx;								// exchange register sets
+	ld hl, $33a1;						// load parent directory template
+	call L336D;							// call directory entry setup for parent
+	ld d, h;							// copy H to D
+	ld e, l;							// copy L to E
+	inc de;								// increment destination pointer
+	xor a;								// clear accumulator
+	ld (hl), a;							// clear first byte
 	ld bc, $01BF;						// 
 	ldir;								// 
 	ld hl, $2d00;						// 
@@ -7381,37 +7387,38 @@ L3348:
 	ld a, $0b;							// 
 	add a, e;							// 
 	ld e, a;							// 
-	ld a, $10;							// 
-	ld (de), a;							// 
-	call L17E7;							// 
-	ret c;								// 
-	set 3, (ix + $01);					// 
-	jp L3192;							// 
+	ld a, $10;							// load directory attribute flag
+	ld (de), a;							// set directory attribute
+	call L17E7;							// call directory sector write function
+	ret c;								// return if write failed
+	set 3, (ix + $01);					// set directory flag in descriptor
+	jp L3192;							// jump to completion routine
 
+; // directory entry setup function
 L336D:
-	ld bc, $0b;							// 
-	ldir;								// 
-	ld a, $10;							// 
-	ld (de), a;							// 
-	ex de, hl;							// 
-	inc hl;								// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	rst $08;							// 
-	defb m_getdate;						// 
-	rst $30;							// 
-	nop;								// 
-	xor a;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	push hl;							// 
-	exx;								// 
-	pop hl;								// 
-	ld (hl), c;							// 
+	ld bc, $0b;							// load filename length (11 characters)
+	ldir;								// copy filename to directory entry
+	ld a, $10;							// load directory attribute
+	ld (de), a;							// set directory attribute flag
+	ex de, hl;							// exchange DE and HL
+	inc hl;								// skip to date field
+	ld (hl), a;							// set date attribute
+	inc hl;								// move to next date field
+	ld (hl), a;							// set date attribute
+	inc hl;								// move to time field
+	rst $08;							// call system function
+	defb m_getdate;						// get current date/time
+	rst $30;							// call system function
+	nop;								// no operation
+	xor a;								// clear accumulator
+	ld (hl), a;							// clear file size high byte
+	inc l;								// increment low byte of HL
+	ld (hl), a;							// clear file size low byte
+	inc l;								// increment low byte of HL
+	push hl;							// save HL register
+	exx;								// exchange register sets
+	pop hl;								// restore HL in alt set
+	ld (hl), c;							// store C value
 	inc l;								// 
 	ld (hl), b;							// 
 	inc l;								// 
@@ -7420,46 +7427,49 @@ L336D:
 	pop hl;								// 
 	rst $30;							// 
 	nop;								// 
-	push hl;							// 
-	exx;								// 
-	pop hl;								// 
-	ld (hl), e;							// 
-	inc l;								// 
-	ld (hl), d;							// 
-	inc l;								// 
-	push hl;							// 
-	exx;								// 
-	pop hl;								// 
-	ld b, a;							// 
-	ld c, b;							// 
-	ld d, c;							// 
-	ld e, d;							// 
-	rst $30;							// 
-	nop;								// 
-	ret;								// 
+	push hl;							// save HL register
+	exx;								// exchange register sets
+	pop hl;								// restore HL in alt set
+	ld (hl), e;							// store E value (cluster low)
+	inc l;								// increment low byte of HL
+	ld (hl), d;							// store D value (cluster high)
+	inc l;								// increment low byte of HL
+	push hl;							// save HL register
+	exx;								// exchange register sets
+	pop hl;								// restore HL in main set
+	ld b, a;							// copy A to B
+	ld c, b;							// copy B to C
+	ld d, c;							// copy C to D
+	ld e, d;							// copy D to E
+	rst $30;							// call system function
+	nop;								// no operation
+	ret;								// return from function
 
-	ld l, $2e;							// 
-	jr nz, L33C5;						// 
-	jr nz, L33C7;						// 
-	jr nz, L33C9;						// 
-	jr nz, L33CB;						// 
-	jr nz, L33CD;						// 
-	ld a, $81;							// 
-	call L1524;							// 
-	ret c;								// 
-	call L163E;							// 
-	call L107B;							// 
-	ld hl, $2c80;						// 
-	ld a, ($3dea);						// 
-	ld (iy + $7f), a;					// 
-	push iy;							// 
-	pop de;								// 
+	; // file access function - load filename character
+	ld l, $2e;							// load filename character '.' ($2e)
+	jr nz, L33C5;						// jump if not zero
+	jr nz, L33C7;						// jump if not zero
+	jr nz, L33C9;						// jump if not zero
+	jr nz, L33CB;						// jump if not zero
+	jr nz, L33CD;						// jump if not zero
+	ld a, $81;							// load file access mode
+	call L1524;							// call file lookup function
+	ret c;								// return if lookup failed
+	call L163E;							// call file access setup function
+	call L107B;							// call file descriptor initialization
+	ld hl, $2c80;						// load file buffer address
+	ld a, ($3dea);						// load system variable
+	ld (iy + $7f), a;					// store in descriptor offset
+	push iy;							// save IY register
+	pop de;								// load descriptor address to DE
 
+; // setup file access mode
 L33C5:
-	ld e, $80;							// 
+	ld e, $80;							// load file mode flag
 
+; // adjust file access parameters
 L33C7:
-	sub $80;							// 
+	sub $80;							// subtract base value
 
 L33C9:
 	ld b, 0;							// 
@@ -7475,41 +7485,44 @@ L33CD equ $33cd
 	or a;								// 
 	ret;								// 
 
+; // file creation and initialization function
 L33D2:
-	ld a, 1;							// 
-	or b;								// 
-	and $41;							// 
-	ld (ix + $01), a;					// 
-	ld a, $80;							// 
-	call L1524;							// 
-	ret c;								// 
-	call L115C;							// 
-	call L1A07;							// 
-	call L163E;							// 
-	call L19ED;							// 
-	call L12A6;							// 
-	ld b, 0;							// 
-	ld c, b;							// 
-	ld d, c;							// 
-	ld e, d;							// 
-	call L19B9;							// 
-	call L0824;							// 
-	call L19D3;							// 
-	call L1773;							// 
-	or a;								// 
-	ret	;								// 
+	ld a, 1;							// load file flag value
+	or b;								// combine with B register
+	and $41;							// mask file attribute bits
+	ld (ix + $01), a;					// store in file descriptor flags
+	ld a, $80;							// load file operation mode
+	call L1524;							// call file lookup function
+	ret c;								// return if lookup failed
+	call L115C;							// call file preparation function
+	call L1A07;							// call file allocation function
+	call L163E;							// call access setup function
+	call L19ED;							// call buffer initialization
+	call L12A6;							// call sector management function
+	ld b, 0;							// clear B register
+	ld c, b;							// clear C register
+	ld d, c;							// clear D register
+	ld e, d;							// clear E register
+	call L19B9;							// call file size setup function
+	call L0824;							// call 32-bit arithmetic function
+	call L19D3;							// call buffer management function
+	call L1773;							// call file completion function
+	or a;								// clear carry flag
+	ret	;								// return from function
 
+; // exchange DE and HL registers
 L3402:
-	ex de, hl;							// 
+	ex de, hl;							// exchange DE and HL
 
+; // directory buffer read function
 L3403:
-	ld hl, $2d00;						// 
-	ld bc, $20;							// 
-	push de;							// 
-	call L1681;							// 
-	pop de;								// 
-	ret c;								// 
-	ld a, (hl);							// 
+	ld hl, $2d00;						// load directory buffer address
+	ld bc, $20;							// load directory entry size (32 bytes)
+	push de;							// save DE register
+	call L1681;							// call buffer read function
+	pop de;								// restore DE register
+	ret c;								// return if read failed
+	ld a, (hl);							// load first byte of entry
 	and a;								// 
 	ret z;								// 
 	cp $e5;								// RESTORE
@@ -7519,42 +7532,43 @@ L3403:
 	ld l, 0;							// 
 	jr nz, L3403;						// 
 	push de;							// 
-	ld de, $2d20;						// 
-	push de;							// 
-	inc de;								// 
-	ld b, 8;							// 
-	call L34BF;							// 
-	ld a, (hl);							// 
-	cp ' ';								// $20
-	jr z, L3432;						// 
-	ld a, $2e;							// 
-	ld (de), a;							// 
-	inc de;								// 
+	ld de, $2d20;						// load filename output buffer address
+	push de;							// save output buffer pointer
+	inc de;								// increment destination pointer
+	ld b, 8;							// set filename length (8 characters)
+	call L34BF;							// call filename copy function
+	ld a, (hl);							// load character from source
+	cp ' ';								// check for space character ($20)
+	jr z, L3432;						// jump if space (no extension)
+	ld a, $2e;							// load dot character for extension
+	ld (de), a;							// store dot separator
+	inc de;								// increment destination pointer
 
+; // process file extension
 L3432:
-	ld b, 3;							// 
-	call L34BF;							// 
-	xor a;								// 
-	ld (de), a;							// 
-	inc de;								// 
-	ld a, (hl);							// 
-	and $3F;							// 
-	ld ($2d20), a;						// 
-	ld bc, 9;							// 
-	add hl, bc;							// 
-	ld c, (hl);							// 
-	inc hl;								// 
-	ld b, (hl);							// 
-	ld ($3c21), bc;						// 
-	inc hl;								// 
-	ldi;								// 
-	ldi;								// 
-	ldi;								// 
-	ldi;								// 
-	ld c, (hl);							// 
-	inc hl;								// 
-	ld b, (hl);							// 
-	ld ($3c1f), bc;						// 
+	ld b, 3;							// set extension length (3 characters)
+	call L34BF;							// call extension copy function
+	xor a;								// clear accumulator
+	ld (de), a;							// null-terminate filename
+	inc de;								// increment destination pointer
+	ld a, (hl);							// load file attributes
+	and $3F;							// mask attribute bits
+	ld ($2d20), a;						// store attributes in buffer
+	ld bc, 9;							// skip to cluster field (9 bytes)
+	add hl, bc;							// add offset to HL
+	ld c, (hl);							// load cluster low byte
+	inc hl;								// increment to cluster high byte
+	ld b, (hl);							// load cluster high byte
+	ld ($3c21), bc;						// store cluster number
+	inc hl;								// move to file size field
+	ldi;								// copy file size byte 1
+	ldi;								// copy file size byte 2
+	ldi;								// copy file size byte 3
+	ldi;								// copy file size byte 4
+	ld c, (hl);							// load date/time low byte
+	inc hl;								// increment to date/time high byte
+	ld b, (hl);							// load date/time high byte
+	ld ($3c1f), bc;						// store date/time information
 	inc hl;								// 
 	ldi;								// 
 	ldi;								// 
