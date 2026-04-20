@@ -4703,55 +4703,59 @@ L195c:
 	ld a, (ix + 16);					// load file position byte 2
 	and %00000001;						// mask to get sector offset bit
 	add a, h;							// add to buffer high address
-	ld h, a;							// 
-	bit 2, (ix + 1);					// 
-	jr nz, L1983;						// 
-	bit 5, (ix + 1);					// 
-	jr z, L197F;						// 
-	ldir;								// 
-	ex de, hl;							// 
-	or a;								// 
-	ret;								// 
+	ld h, a;							// store masked position in H register
+	bit 2, (ix + 1);					// test write mode bit
+	jr nz, L1983;						// jump to write handler if set
+	bit 5, (ix + 1);					// test read mode bit
+	jr z, L197F;						// jump to SPI handler if not set
+	ldir;								// copy BC bytes from HL to DE
+	ex de, hl;							// exchange source and destination pointers
+	or a;								// clear carry flag (success)
+	ret;								// return from copy operation
 
+; // SPI interface handler function
 L197F:
-	rst $30;							// 
-	ld b, mmcspi;						// 
-	ret;								// 
+	rst $30;							// call ROM calculator routine
+	ld b, mmcspi;						// load MMC SPI port address
+	ret;								// return from SPI handler
 
+; // write mode handler function
 L1983:
-	ex de, hl;							// 
-	rst $30;							// 
-	rlca;								// 
-	jp L122C;							// 
+	ex de, hl;							// exchange DE and HL registers
+	rst $30;							// call ROM calculator routine
+	rlca;								// rotate A left circular
+	jp L122C;							// jump to write processing routine
 
+; // file size calculation and validation function
 L1989:
-	push bc;							// 
-	call L19C6;							// 
-	ld h, (ix + 12);					// 
-	ld l, (ix + 11);					// 
-	or a;								// 
-	sbc hl, de;							// 
-	ex de, hl;							// 
-	ld h, (ix + 14);					// 
-	ld l, (ix + 13);					// 
-	sbc hl, bc;							// 
-	pop bc;								// 
-	ld a, l;							// 
-	or h;								// 
-	ret nz;								// 
-	ld h, d;							// 
-	ld l, e;							// 
-	sbc hl, bc;							// 
-	ret nc;								// 
-	ld b, d;							// 
-	ld c, e;							// 
-	ret;								// 
+	push bc;							// save BC register pair
+	call L19C6;							// call file position load function
+	ld h, (ix + 12);					// load file size high byte
+	ld l, (ix + 11);					// load file size low byte
+	or a;								// clear carry for subtraction
+	sbc hl, de;							// subtract file position from size
+	ex de, hl;							// exchange result to DE
+	ld h, (ix + 14);					// load file size upper high byte
+	ld l, (ix + 13);					// load file size upper low byte
+	sbc hl, bc;							// subtract position high from size high
+	pop bc;								// restore BC register pair
+	ld a, l;							// load result low byte
+	or h;								// combine with high byte
+	ret nz;								// return if size calculation non-zero
+	ld h, d;							// copy remaining size to HL
+	ld l, e;							// for comparison with requested bytes
+	sbc hl, bc;							// subtract requested from available
+	ret nc;								// return if enough bytes available
+	ld b, d;							// limit to available bytes
+	ld c, e;							// store in BC
+	ret;								// return with limited byte count
 
+; // file position update and store function
 L19AB:
-	push de;							// 
-	push bc;							// 
-	call L19C6;							// 
-	call L0831;							// 
+	push de;							// save DE register pair
+	push bc;							// save BC register pair
+	call L19C6;							// call file position load function
+	call L0831;							// call 32-bit addition function
 	call L19B9;							// call file position store function
 	pop bc;								// restore BC register pair
 	pop de;								// restore DE register pair
