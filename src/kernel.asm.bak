@@ -1258,7 +1258,7 @@ mount_filesystems_loop:
 	pop hl;								// restore drive number from stack
 	ret c;								// return if carry set (error)
 	ld a, l;							// get drive number back
-	call configure_system_drive;		// call drive configuration routine
+	call L07C3;							// call drive configuration routine
 	ret c;								// return if carry set (error)
 	xor a;								// clear accumulator (A = 0)
 	push iy;							// save IY register on stack
@@ -1313,7 +1313,7 @@ drive_already_mounted:
 	ld a, c;							// get partition number
 	and a;								// check if zero (primary partition)
 	jr z, mount_partition;				// jump if primary partition
-	call configure_system_drive;		// call partition configuration routine
+	call L07C3;							// call partition configuration routine
 	ld a, $0b;							// load error code $0b (invalid partition)
 	ccf;								// complement carry flag
 	ret c;								// return if carry set (error)
@@ -1334,7 +1334,7 @@ mount_partition:
 
 ;	// process disk information and mount
 process_disk_info:
-	call find_empty_drive_slot;			// call disk processing routine
+	call L07E6;							// call disk processing routine
 	pop bc;								// restore partition info from stack
 	ld a, (hl);							// load partition type from disk info
 	call validate_partition_type;		// validate partition type
@@ -1342,7 +1342,7 @@ process_disk_info:
 	jr nz, finalize_drive_mount;		// jump if not primary partition
 	push hl;							// save HL register on stack
 	push bc;							// save partition info on stack
-	call find_next_drive_letter;		// find next available drive letter
+	call L07AB;							// find next available drive letter
 	pop bc;								// restore partition info from stack
 	pop hl;								// restore HL register from stack
 	ld c, a;							// store drive letter in C register
@@ -1406,20 +1406,23 @@ return_filesystem_type:
 	ret;								// return to caller
 
 ;;	// find next available drive letter
+L07AB:
 find_next_drive_letter:
 	ld c, a;							// save drive letter in C register
-	call check_drive_letter_available;	// check if drive letter is available
+	call L07B4;							// check if drive letter is available
 	ld a, c;							// get drive letter back
 	ret c;								// return if carry set (drive available)
 	inc a;								// try next drive letter
-	jr find_next_drive_letter;			// loop to check next letter
+	jr L07AB;							// loop to check next letter
 
 ;	// check if drive letter is already in use
+L07B4:
 check_drive_letter_available:
 	ld hl, $2d01;						// point to drive table (drive letter column)
 	ld b, $0c;							// check up to 12 drive entries
 
 ;	// search loop through drive table
+L07B9:
 search_drive_table:
 	ld a, (hl);							// load drive letter from table
 	cp c;								// compare with requested drive letter
@@ -1427,26 +1430,29 @@ search_drive_table:
 	inc hl;								// advance to next drive entry
 	inc hl;								// (each entry is 3 bytes)
 	inc hl;								// complete 3-byte entry traversal
-	djnz search_drive_table;			// decrement B and loop if not zero
+	djnz L07B9;							// decrement B and loop if not zero
 	scf;								// set carry flag (drive letter available)
 	ret;								// return to caller
 
 ;	// configure drive in system drive table
+L07C3:
 configure_system_drive:
 	push bc;							// save BC register on stack
-	call validate_drive_id;				// validate drive configuration
-	jr c, handle_drive_config_error;	// jump if error in validation
+	call L07FE;							// validate drive configuration
+	jr c, L07D9;						// jump if error in validation
 	ld iy, $2d00;						// point IY to start of drive table
 	ld b, $0c;							// set counter for 12 drive slots
 
 ;	// search for matching drive in table
+L07CF:
 search_matching_drive:
 	cp (iy + _flags);					// compare with drive flags in table entry
-	jr z, check_drive_compatibility;	// jump if match found (drive already configured)
-	call advance_drive_table_ptr;		// advance to next drive table entry
-	djnz search_matching_drive;			// decrement counter and loop if more entries
+	jr z, L07DE;						// jump if match found (drive already configured)
+	call L07F7;							// advance to next drive table entry
+	djnz L07CF;							// decrement counter and loop if more entries
 
 ;	// handle drive configuration error
+L07D9:
 handle_drive_config_error:
 	pop bc;								// restore BC register from stack
 	ld a, $0b;							// load error code $0b (drive configuration failed)
@@ -1454,6 +1460,7 @@ handle_drive_config_error:
 	ret;								// return with error to caller
 
 ;	// drive already configured, check compatibility
+L07DE:
 check_drive_compatibility:
 	ld a, (iy + _tv_flag);				// load TV flag from drive table entry
 	and %00001111;						// mask lower 4 bits (compatibility flags)
@@ -1462,11 +1469,13 @@ check_drive_compatibility:
 	ret;								// return to caller
 
 ;	// search for empty slot in drive table
+L07E6:
 find_empty_drive_slot:
 	ld de, $2d00;						// point DE to start of drive table
 	ld b, $0c;							// set counter for 12 drive slots
 
 ;	// loop through drive table entries
+L07EB:
 search_empty_slot_loop:
 	ld a, (de);							// load drive ID from current table entry
 	and a;								// check if slot is empty (drive ID = 0)
@@ -1474,12 +1483,13 @@ search_empty_slot_loop:
 	inc de;								// advance to next drive table entry
 	inc de;								// (each entry is 3 bytes)
 	inc de;								// complete 3-byte entry traversal
-	djnz search_empty_slot_loop;		// decrement counter and loop if more entries
+	djnz L07EB;							// decrement counter and loop if more entries
 	ld a, $0b;							// load error code $0b (no free drive slots)
 	scf;								// set carry flag to indicate error
 	ret;								// return with error
 
 ;	// advance IY pointer to next drive table entry
+L07F7:
 advance_drive_table_ptr:
 	inc iy;								// advance IY pointer (each entry is 3 bytes)
 	inc iy;								// second byte of 3-byte entry
@@ -1487,6 +1497,7 @@ advance_drive_table_ptr:
 	ret;								// return to caller
 
 ;	// validate and select drive identifier
+L07FE:
 validate_drive_id:
 	ld b, a;							// save drive identifier in B register
 	and a;								// check if drive identifier is zero
@@ -1582,32 +1593,37 @@ char_print_routine:
 	pop hl;								// restore HL register
 	ret;								// return to caller
 
+L0859:
 format_number_suppress_zeros:
 	ld c, $30;							// ASCII '0' (suppress leading zeros)
 	ld h, 0;							// clear high byte of number
-	jr format_ones_remainder;			// jump to decimal conversion
+	jr L0873;							// jump to decimal conversion
 	ld c, $20;							// ASCII space (don't suppress)
 
 ;	// called from dirs.io
+L0861:
 format_decimal_10k:
 	ld de, $2710;						// 10000 (ten thousands place)
-	call convert_digit_to_ascii;		// convert and print digit
+	call L087D;							// convert and print digit
 	ld de, $03e8;						// 1000 (thousands place)
 
 ;	// format hundreds and tens digits
+L086a:
 format_hundreds_tens:
-	call convert_digit_to_ascii;		// convert and print thousands digit
+	call L087D;							// convert and print thousands digit
 	ld de, $64;							// 100 (hundreds place)
-	call convert_digit_to_ascii;		// convert and print hundreds digit
+	call L087D;							// convert and print hundreds digit
 
 ;	// format ones and remainder
+L0873:
 format_ones_remainder:
 	ld de, $0a;							// 10 (tens place)
-	call convert_digit_to_ascii;		// convert and print tens digit
+	call L087D;							// convert and print tens digit
 	ld e, 1;							// 1 (ones place)
 	ld c, $30;							// ASCII '0' for digit conversion
 
 ;	// divide number by place value and convert to ASCII
+L087D:
 convert_digit_to_ascii:
 	ld a, $2f;							// start with ASCII '/' (one before '0')
 
@@ -1708,7 +1724,7 @@ L08F0:
 	push bc;							// save unit character and decimal count
 	ex af, af';';						// restore decimal places from A'
 	ld c, a;							// store decimal places count in C
-	call format_decimal_10k;			// format and print the number
+	call L0861;							// format and print the number
 	pop bc;								// restore unit character
 	ld a, c;							// check decimal places count
 	or c;								// test if we have decimal places
@@ -1927,7 +1943,7 @@ L09E1:
 	cp '*';								// use current drive? test for file commands
 	ret z;								// return if using current drive
 	ld c, a;							// save drive number
-	call configure_system_drive;		// validate drive number (04_files.asm)
+	call L07C3;							// validate drive number (04_files.asm)
 	ret c;								// return if invalid drive
 	ld a, c;							// restore drive number
 	ld ($2d46), a;						// set as current drive
@@ -2147,7 +2163,7 @@ L0AFF:
 	ret;								// return with count
 
 	push iy;							// save IY register
-	call configure_system_drive;		// validate drive (04_files.asm)
+	call L07C3;							// validate drive (04_files.asm)
 	pop bc;								// restore BC register
 	ret c;								// return if drive invalid
 	ld a, (iy + _flags);				// get file flags
@@ -2170,7 +2186,7 @@ L0B1E:
 	ld a, ($2d46);						// get current drive number
 
 L0B2A:
-	call configure_system_drive;		// validate drive (04_files.asm)
+	call L07C3;							// validate drive (04_files.asm)
 	jr c, L0AE1;						// return with error if invalid
 	push af;							// save drive number
 	ld a, (iy + _flags);				// get file flags
@@ -2389,7 +2405,7 @@ L0C67:
 	ld hl, $0c9c;						// point to "UnoDOS error #" message
 	call v_pr_msg;						// print error prefix
 	ld l, b;							// put error number in L
-	call format_number_suppress_zeros;	// print error number (05_api.asm)
+	call L0859;							// print error number (05_api.asm)
 	jr L0C85;							// restore page and exit
 
 L0C78:
@@ -5787,7 +5803,7 @@ get_rom_byte:
 	org $1FD0
 	jp pr_str;							// v_pr_str - print string routine (05_api.asm)
 	org $1FD3
-	jp format_decimal_10k;				// V0861 - numeric display routine (05_api.asm)
+	jp L0861;							// V0861 - numeric display routine (05_api.asm)
 	org $1FD6
 	jp L089A;							// V089A - file size display routine (05_api.asm)
 	org $1FD9
