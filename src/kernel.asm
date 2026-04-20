@@ -7406,25 +7406,26 @@ L3306:
 	inc de;								// increment destination pointer
 	xor a;								// clear accumulator
 	ld (hl), a;							// clear first byte
-	ld bc, $01BF;						// 
-	ldir;								// 
-	ld hl, $2d00;						// 
-	call L313C;							// 
-	ret c;								// 
-	jp L1697;							// 
+	ld bc, $01BF;						// load buffer size (447 bytes for directory clear)
+	ldir;								// copy zeros to clear directory buffer
+	ld hl, $2d00;						// load directory buffer address
+	call L313C;							// call directory sector write function
+	ret c;								// return if write operation failed
+	jp L1697;							// jump to file update function
 
+; // directory creation helper function
 L3348:
-	xor a;								// 
-	ld ($3c01), a;						// 
-	call L1712;							// 
-	ld (ix + 0), 0;						// 
-	ret c;								// 
-	ld hl, $2600;						// 
-	call L17FD;							// 
-	ret c;								// 
-	ld a, $0b;							// 
-	add a, e;							// 
-	ld e, a;							// 
+	xor a;								// clear accumulator
+	ld ($3c01), a;						// clear operation flags
+	call L1712;							// call file creation function
+	ld (ix + 0), 0;						// clear file descriptor error status
+	ret c;								// return if creation failed
+	ld hl, $2600;						// load sector buffer address
+	call L17FD;							// call directory sector calculation
+	ret c;								// return if calculation failed
+	ld a, $0b;							// load offset to attributes field
+	add a, e;							// add to directory entry pointer
+	ld e, a;							// store updated pointer
 	ld a, $10;							// load directory attribute flag
 	ld (de), a;							// set directory attribute
 	call L17E7;							// call directory sector write function
