@@ -35,7 +35,7 @@
 start:
 	di;									// interrupts off for initialization
 	ld sp, $5e00;						// set stack pointer to $5e00 (below UDG area)
-	jp L0101;							// jump to main initialization routine
+	jp reset_init;						// jump to main initialization routine
 
 ;	// automatically mapped in by the hardware after M1 when PC=0008h
 ;	// main API entry point
@@ -43,7 +43,7 @@ start:
 restart_08:
 	jp syscall_dispatcher;					// jump to main syscall dispatcher
 
-L000B:
+next_char_basic:
 	ld hl, (ch_add);					// get pointer to next character in BASIC program
 	jr char_handler_entry;				// continue to character handler
 
@@ -60,13 +60,13 @@ restart_18:
 	jp $0cbd;							// jump to ROM routine caller (RST $18 vector)
 
 	org $001f
-L001F:
-restart_20 equ L001F + 1
+next_char_rst20:
+restart_20 equ next_char_rst20 + 1
 	jr L004B;							// jump to next character routine
 	ld e, l;							// save L register to E
 	ld e, h;							// save H register to E (overwrites previous)
 	ld (x_ptr), hl;						// save HL to ? marker pointer in BASIC
-	jr L004D;							// continue processing
+	jr char_process_continue;			// continue processing
 
 	org $0028
 restart_28:
@@ -86,27 +86,27 @@ cmd_folder:
 ;	// automatically mapped in by the hardware after M1 when PC=$0038
 	org $0038
 maskint:
-	jr L001F;							// jump to restart_20 handler (maskable interrupt)
+	jr next_char_rst20;					// jump to restart_20 handler (maskable interrupt)
 	ld hl, $0039;						// load address after interrupt vector
 	jp L1FF4;							// jump to interrupt cleanup routine
 
-L0040:
+system_info:
 	defm "sys", 0;						// system file extension
 	defm "2026";						// year of release
 
-L0048:
+load_byte_de:
 	ld a, (de);							// load byte pointed to by DE
 
-L0049:
+keyboard_test_pattern:
 	ld bc, $fb00;						// load test pattern for keyboard scanning
 	ret;								// return to caller
 
-L004B equ L0049 + 2;					// points to RET instruction in L0049
+L004B equ keyboard_test_pattern + 2;	// points to RET instruction in L0049
 
-L004D:
+char_process_continue:
 	jp L0C06;							// jump to character processing continuation
 
-L0050:
+cr_string:
 	defb $0d, 0;						// carriage return followed by string terminator
 
 verbose:
@@ -134,7 +134,7 @@ NMI:
 	nop;								// padding/alignment instruction
 
 	org $0068
-L0068:
+nmi_handler:
 	ld (mmc_2), hl;						// save HL to MMC temporary storage
 	ld hl, (mmc_3);						// load previous memory page configuration
 	ld h, a;							// save A register in H
@@ -203,7 +203,7 @@ mute_ay:
 
 ;	// select BASIC ROM on 128K machines
 	org $00ef
-L00EF:
+select_basic_rom:
 	ld a, 4;							// set bit 2: ROM1 selected, normal memory mode
 	ld bc, $1ffd;						// +3 memory control port
 	out (c), a;							// configure +3 memory (%00000100)
@@ -218,23 +218,23 @@ L00EF:
 	dec a;								// instruction in padding space 
 
 ;	// Jumped to from RST0
-L0101:
+reset_init:
 	xor a;								// clear accumulator (A = 0)
 	ld bc, $2a30;						// load delay counter (10800 decimal)
 	out (mmcram), a;					// select divMMC page 0, disable CONMEM/MAPRAM
 
-L0107:
+delay_loop:
 	dec bc;								// decrement delay counter
 	nop;								// timing delay
 	ld a, c;							// get low byte of counter
 	or b;								// OR with high byte to test for zero
-	jr nz, L0107;						// loop until counter reaches zero (bus settle delay)
-	call L00EF;							// force BASIC ROM selection on 128K machines
+	jr nz, delay_loop;					// loop until counter reaches zero (bus settle delay)
+	call select_basic_rom;				// force BASIC ROM selection on 128K machines
 	ld a, $0e;							// load status byte
 	ld ($201f), a;						// store at divMMC status location
 	ld a, ($2d42);						// check initialization marker
 	cp $aa;								// compare with expected value (170 decimal)
-	jr nz, L0124;						// if not initialized, jump to full init
+	jr nz, full_init;					// if not initialized, jump to full init
 	ld a, $7f;							// keyboard row for SPACE key
 	in a, (ula);						// read keyboard row
 	rra;								// rotate right to test SPACE in bit 0
@@ -242,7 +242,7 @@ L0107:
 	;									// which sets HL to 1 then exits
 
 ;	// start of full initialization - clear screen to black
-L0124:
+full_init:
 	xor a;								// clear accumulator (A = 0)
 	out (ula), a;						// set border to black
 	out ($ff), a;						// set low resolution mode on Pentagon/Scorpion
@@ -258,7 +258,7 @@ L0124:
 	ld a, 4;							// start memory test from page 4
 
 ;	org $013b
-L013D:
+memory_test_loop:
 	out (mmcram), a;					// select divMMC memory page A
 	ld bc, $1fff;						// byte count: 8191 bytes
 	ld hl, $2000;						// source address start of divMMC window
@@ -272,18 +272,18 @@ L013D:
 	ld (hl), $c9;						// place RET instruction at $3D30
 	dec a;								// decrement to next page (page = page - 1)
 	cp $ff;								// check if we've wrapped to 255 (tested page 0)
-	jr nz, L013D;						// if not, continue testing next page
+	jr nz, memory_test_loop;			// if not, continue testing next page
 	ld a, 4;							// select page 4 for writability test
 	out (mmcram), a;					// switch back to page 4
 	ld hl, $2000;						// point to start of divMMC window
 	ld a, (hl);							// read current value
 	inc (hl);							// increment the value
 	cp (hl);							// compare original with incremented
-	jr nz, L016B;						// if different, memory is writable
+	jr nz, memory_init_complete;		// if different, memory is writable
 	ld l, $1c;							// else set L to $1C (error indicator)
 
 ;	org $0169
-L016B:
+memory_init_complete:
 	xor a;								// clear accumulator (A = 0)
 	out (mmcram), a;					// switch to divMMC page 0, disable special modes
 	ld a, $aa;							// set initialization marker
@@ -330,7 +330,7 @@ L016B:
 	ld ($2020), hl;						// store address reference
 	ld a, $c9;							// RET instruction opcode
 	ld ($2f00), a;						// place RET at $2F00
-	ld hl, L0050;						// point to "detecting devices" message
+	ld hl, cr_string;					// point to "detecting devices" message
 	call pr_str;						// print device detection message
 	ld a, $80;							// device ID or test parameter
 	call L027D;							// device detection/initialization routine
@@ -495,7 +495,7 @@ L02E8:
 
 L02EF:
 	call L0305;							// construct base path ("/dos/[filename].")
-	ld hl, L0040;						// point to "sys" extension string
+	ld hl, system_info;					// point to "sys" extension string
 
 L02F5:
 	call L0598;							// copy extension string to path
@@ -505,7 +505,7 @@ L02F5:
 
 L02FD:
 	call L0305;							// construct base path ("/dos/[filename].")
-	ld hl, L0040;						// point to "sys" extension string
+	ld hl, system_info;					// point to "sys" extension string
 	jr L02F5;							// continue to add extension
 
 L0305:
@@ -4358,7 +4358,7 @@ L177A:
 	ld a, h;							// load high byte of address
 	and %00000001;						// check if address is odd (bit 0)
 	add a, l;							// add to low byte for alignment check
-	ld bc, L001F;						// load default clear size (31 bytes)
+	ld bc, next_char_rst20;				// load default clear size (31 bytes)
 	jr nz, L1794;						// jump to clear if not aligned
 	set 2, (ix + 1);					// set buffer operation flag
 	call L1250;							// call sector processing function
@@ -5752,7 +5752,7 @@ file_test:
 	jr nz, not_cordy;					// jump if not minimum SE BASIC compatibility
 	rst $18;							// call ROM 0 routine
 	defw $3200;							// load unodos.sys from SD to RAM
-	call L00EF;							// restore ROM 1 (48K BASIC)
+	call select_basic_rom;				// restore ROM 1 (48K BASIC)
 	ld hl, $c000;						// source: loaded system in high memory
 	ld de, $2000;						// destination: divMMC window
 	ld bc, lower_end-$2000;				// byte count for first part
@@ -5768,7 +5768,7 @@ file_test:
 
 ;	org $1f7e
 not_cordy:
-	call L00EF;							// restore ROM 1 (48K BASIC)
+	call select_basic_rom;				// restore ROM 1 (48K BASIC)
 	ld hl, msg_failed;					// point to failure message
 	jp pr_str;							// display error message and exit
 
@@ -6278,7 +6278,7 @@ L2299:
 ; Function: Error code handler and system boundary checks  
 L22A5:
 	cp $FF;								// check for error code $FF
-	jp z, L0124;						// jump to error handler if found
+	jp z, full_init;					// jump to error handler if found
 	cp $FE;								// check for error code $FE
 	jp z, L0251;						// jump to error handler if found
 	cp $FC;								// check for boundary code $FC
@@ -6314,7 +6314,7 @@ L22C7:
 L22D8:
 	ld ($223b), de;						// store message pointer
 	di;									// interrupts off
-	call L00EF;							// call system function
+	call select_basic_rom;				// call system function
 	ld hl, $5b00;						// ZX printer buffer start
 	ld d, h;							// copy H to D
 	ld e, 1;							// set E to 1

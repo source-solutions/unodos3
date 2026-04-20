@@ -7,27 +7,20 @@ cd "$(dirname "$0")/../src"
 # List of old labels to remove (only the definitions, not references)
 # Only remove labels that have been successfully replaced
 OLD_LABELS=(
-    "L0985"  # syscall_dispatcher
-    "L098C"  # syscall_reg_save
-    "L0845"  # char_print_routine
-    "L0CD4"  # char_processing_routine
-    "L0091"  # vector_dispatcher
-    "L009F"  # vector_lookup
-    "L081C"  # inc_32bit
-    "L0824"  # dec_32bit
-    "L0831"  # add_32bit
-    "L0836"  # sub_32bit
-    "L0694"  # compare_32bit
-    "L06A5"  # syntax_check
-    "L06A9"  # store_32bit
-    "L06E1"  # disk_mount_init
-    "L06E8"  # mount_filesystems_loop
-    "L17AC"  # init_dir_entry
-    "L17DB"  # reset_file_position
-    "L1989"  # calculate_file_size
-    "L19AB"  # update_file_position
-    "L19B9"  # store_file_position
-    "L19C6"  # load_file_position
+    "L000B"  # next_char_basic
+    "L001F"  # next_char_rst20
+    "L0040"  # system_info
+    "L0048"  # load_byte_de
+    "L0049"  # keyboard_test_pattern
+    "L004D"  # char_process_continue
+    "L0050"  # cr_string
+    "L0068"  # nmi_handler
+    "L00EF"  # select_basic_rom
+    "L0101"  # reset_init
+    "L0107"  # delay_loop
+    "L0124"  # full_init
+    "L013D"  # memory_test_loop
+    "L016B"  # memory_init_complete
 )
 
 echo "Removing old L0000: label definitions..."
