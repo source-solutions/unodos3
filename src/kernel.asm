@@ -49,11 +49,11 @@ next_char_basic:
 
 	org $0010
 restart_10:
-	jp char_print_routine;					// jump to character print routine (RST $10 vector)
+	jp char_print_routine;				// jump to character print routine (RST $10 vector)
 
 	org $0015
 char_handler_entry:
-	jp char_processing_routine;				// jump to character processing routine
+	jp char_processing_routine;			// jump to character processing routine
 
 	org $0018
 restart_18:
@@ -78,7 +78,7 @@ restart_28:
 ;	// auxiliary routines for internal UnoDOS business
 	org $0030
 restart_38:
-	jr vector_dispatcher;					// jump to internal vector table dispatcher 
+	jr vector_dispatcher;				// jump to internal vector table dispatcher 
 
 cmd_folder:
 	defm "/dos/"; 						// avoids clash with keywords in tokenizers
@@ -343,38 +343,38 @@ memory_init_complete:
 	ld ($2d4a), a;						// store in alternative location
 	ld ($2d46), a;						// store in another configuration location
 	ld hl, sys_filename;				// point to "unodos" system filename
-	call L0257;							// setup filename for loading
+	call display_filename;				// setup filename for loading
 	call L02C5;							// attempt to load main system file
 	push af;							// save load result flags
 	call file_test;						// test if system file loaded correctly
 	pop af;								// restore load result flags
-	jr c, L0232;						// if load failed, skip to user input wait
+	jr c, wait_space_release;			// if load failed, skip to user input wait
 	ld hl, msg_nmi;						// point to NMI system filename
-	call L0257;							// setup NMI filename
+	call display_filename;				// setup NMI filename
 	call L02B3;							// attempt to load NMI handler
-	call L0272;							// show OK or ERROR for NMI system file
-	jr nz, L0232;						// if NMI load failed, skip to user input
+	call show_result;					// show OK or ERROR for NMI system file
+	jr nz, wait_space_release;			// if NMI load failed, skip to user input
 	ld a, ($2e8c);						// check memory configuration result
 	and a;								// test if zero (indicates error)
-	jr nz, L0232;						// if memory error, skip to user input
+	jr nz, wait_space_release;			// if memory error, skip to user input
 	ld hl, msg_betadisk;				// point to "betadisk" system filename
-	call L0257;							// setup betadisk filename
+	call display_filename;				// setup betadisk filename
 	call L02A1;							// attempt to load betadisk system
 	push af;							// save load result
 	call nc, L03C4;						// if load successful, initialize betadisk
 	pop af;								// restore load result
-	call L0272;							// show OK or ERROR for betadisk load
+	call show_result;					// show OK or ERROR for betadisk load
 
 ;	org $0242
-L0232:
+wait_space_release:
 	ld a, $7f;							// keyboard row for SPACE key
 	in a, (ula);						// read keyboard row
 	rra;								// rotate right to test SPACE key in bit 0
-	jr c, L0248;						// if SPACE not pressed, continue to exit
-	jr L0232;							// loop waiting for SPACE release
+	jr c, mute_and_exit;				// if SPACE not pressed, continue to exit
+	jr wait_space_release;				// loop waiting for SPACE release
 
 	org $0248
-L0248:
+mute_and_exit:
 	call mute_psg;						// turn off PSG sound generators
 
 	org $024b
@@ -389,7 +389,7 @@ L0251:
 
 ;;; 03_screen.asm
 
-L0257:
+display_filename:
 	call L02EF;							// construct full system file path with extension
 	push hl;							// save path pointer
 	ld de, 5;							// offset to filename portion (skip "/dos/")
@@ -399,7 +399,7 @@ L0257:
 	ret;								// return with full path in HL
 
 	org $0272
-L0272:
+show_result:
 	ld hl, msg_ok;						// point to "OK" message
 	jr nc, L027A;						// jump if no carry (success)
 	ld hl, msg_failed;					// else point to error/failed message
@@ -5442,20 +5442,20 @@ L1D81:
 
 L1D9A:
 	call L1DE0;							// select SD card
-	out (mmcspi), a;						// write to divMMC SPI port
+	out (mmcspi), a;					// write to divMMC SPI port
 	push af;							// save command byte
 	ld a, b;							// get argument byte 3
 	nop;								// timing delay
 	out (mmcspi), a;					// write to divMMC SPI port
 	ld a, c;							// get argument byte 2
 	nop;								// timing delay
-	out (mmcspi), a;						// write to divMMC SPI port
+	out (mmcspi), a;					// write to divMMC SPI port
 	ld a, d;							// get argument byte 1
 	nop;								// timing delay
-	out (mmcspi), a;						// write to divMMC SPI port
+	out (mmcspi), a;					// write to divMMC SPI port
 	ld a, e;							// get argument byte 0
 	nop;								// timing delay
-	out (mmcspi), a;						// write to divMMC SPI port
+	out (mmcspi), a;					// write to divMMC SPI port
 	pop af;								// restore command byte
 	cp '@';								// $40
 	ld b, $95;							// CRC for CMD0
