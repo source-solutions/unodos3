@@ -7609,19 +7609,19 @@ L3432:
 	inc hl;								// increment to date/time high byte
 	ld b, (hl);							// load date/time high byte
 	ld ($3c1f), bc;						// store date/time information
-	inc hl;								// 
-	ldi;								// 
-	ldi;								// 
-	ldi;								// 
-	ldi;								// 
-	bit 6, (ix + $01);					// 
-	call nz, L347B;						// 
-	ld b, 0;							// 
-	ld a, e;							// 
-	sub $20;							// 
-	ld c, a;							// 
-	pop hl;								// 
-	pop de;								// 
+	inc hl;								// move to next directory entry field
+	ldi;								// copy date/time byte 1 and increment pointers
+	ldi;								// copy date/time byte 2 and increment pointers
+	ldi;								// copy date/time byte 3 and increment pointers
+	ldi;								// copy date/time byte 4 and increment pointers
+	bit 6, (ix + $01);					// check enhanced directory flag (bit 6)
+	call nz, L347B;						// call enhanced processing if flag set
+	ld b, 0;							// clear B register for return value
+	ld a, e;							// load destination pointer offset
+	sub $20;							// subtract base buffer address
+	ld c, a;							// store buffer size in C
+	pop hl;								// restore filename buffer pointer
+	pop de;								// restore directory entry pointer
 	ret c;								// return if error occurred
 	rst $30;							// call ROM calculator routine
 	ld b, $eb;							// load completion code
