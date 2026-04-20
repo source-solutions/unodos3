@@ -1832,15 +1832,15 @@ L093D:
 	dec bc;								// decrement table pointer
 	add hl, de;							// table offset calculation
 	dec bc;								// decrement table pointer
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	ld b, $0b;							// 
-	add hl, de;							// 
-	dec bc;								// 
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	ld b, $0b;							// load table index $0b
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
 
 ;;; 07_dispatcher.asm
 
@@ -3681,14 +3681,15 @@ L13F8:
 	ccf;								// clear carry flag (character valid)
 	ret;								// return successfully
 
-	ccf;								// 
-	ld ($3a2f), hl;						// 
-	dec sp;								// 
-	inc l;								// 
-	inc a;								// 
-	ld a, $5c;							// 
-	ld a, h;							// 
-	ld l, $2a;							// 
+	; // data table or unused bytes
+	ccf;								// data byte $3f
+	ld ($3a2f), hl;						// data bytes $22 $2f $3a
+	dec sp;								// data byte $3b
+	inc l;								// data byte $2c
+	inc a;								// data byte $3c
+	ld a, $5c;							// data bytes $3e $5c
+	ld a, h;							// data byte $7c
+	ld l, $2a;							// data bytes $2e $2a
 
 ; Function: Compare directory entries
 L1417:
@@ -6821,9 +6822,9 @@ L25F9:
 	jr nz, L25F9;						// repeat until counter zero
 	ld a, l;							// load accumulated overflow
 	and a;								// test for overflow bits
-	ld a, h;							// 
-	call nz, L081C;						// 
-	ret;								// 
+	ld a, h;							// load high byte for overflow check
+	call nz, L081C;						// call overflow handler if bits set
+	ret;								// return from shift function
 
 L260D:
 	defb "Virtual Disk", 0;				// null-terminated string constant
