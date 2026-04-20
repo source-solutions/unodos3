@@ -7458,14 +7458,14 @@ L336D:
 	exx;								// exchange register sets
 	pop hl;								// restore HL in alt set
 	ld (hl), c;							// store C value
-	inc l;								// 
-	ld (hl), b;							// 
-	inc l;								// 
-	push hl;							// 
-	exx;								// 
-	pop hl;								// 
-	rst $30;							// 
-	nop;								// 
+	inc l;								// move to next directory field
+	ld (hl), b;							// store cluster high byte
+	inc l;								// move to next directory field
+	push hl;							// save directory entry pointer
+	exx;								// switch to alternate register set
+	pop hl;								// restore pointer in alt registers
+	rst $30;							// call ROM calculator routine
+	nop;								// padding instruction
 	push hl;							// save HL register
 	exx;								// exchange register sets
 	pop hl;								// restore HL in alt set
@@ -7484,10 +7484,11 @@ L336D:
 	nop;								// no operation
 	ret;								// return from function
 
-	; // file access function - load filename character
+	; // file access function - load filename character  
+L33A2:
 	ld l, $2e;							// load filename character '.' ($2e)
 	jr nz, L33C5;						// jump if not zero
-	jr nz, L33C7;						// jump if not zero
+	jr nz, L33C7;						// jump if not zero  
 	jr nz, L33C9;						// jump if not zero
 	jr nz, L33CB;						// jump if not zero
 	jr nz, L33CD;						// jump if not zero
@@ -7511,18 +7512,18 @@ L33C7:
 	sub $80;							// subtract base value
 
 L33C9:
-	ld b, 0;							// 
+	ld b, 0;							// clear B register for byte count
 
 L33CB:
-	ld c, a;							// 
+	ld c, a;							// store byte count in C register
 
 L33CD equ $33cd
 
-	ldir;								// 
-	ld a, b;							// 
-	ld (de), a;							// 
-	or a;								// 
-	ret;								// 
+	ldir;								// copy BC bytes from HL to DE
+	ld a, b;							// load remaining byte count
+	ld (de), a;							// store final byte count
+	or a;								// clear carry flag (success)
+	ret;								// return from file access function
 
 ; // file creation and initialization function
 L33D2:
@@ -7676,279 +7677,298 @@ L34B1:
 
 L34BF:
 	ld a, (hl);							// 
-	inc hl;								// 
+	inc hl;								// move to next filename character
 	cp ' ';								// $20
-	jr z, L34C7;						// 
-	ld (de), a;							// 
-	inc de;								// 
+	jr z, L34C7;						// skip if space character (padding)
+	ld (de), a;							// store valid character in output
+	inc de;								// increment output pointer
 
 L34C7:
-	djnz L34BF;							// 
-	ret;								// 
+	djnz L34BF;							// decrement B and loop for all characters
+	ret;								// return from filename copy function
 
-	ld de, $2d00;						// 
-	ld hl, $40;							// 
-	ld bc, $0b;							// 
-	ldir;								// 
-	ld hl, ($3c23);						// 
-	ld e, $0f;							// 
-	ld bc, 8;							// 
-	rst $30;							// 
-	rlca;								// 
-	xor a;								// 
-	ld (de), a;							// 
-	ld h, d;							// 
-	ld l, e;							// 
-	inc e;								// 
-	ld bc, $67;							// 
-	ldir;								// 
-	push de;							// 
-	ld l, $10;							// 
-	ld e, (hl);							// 
-	inc l;								// 
-	ld d, (hl);							// 
-	ld b, a;							// 
-	ld c, a;							// 
-	push hl;							// 
-	ld hl, $80;							// 
-	call L0831;							// 
-	pop hl;								// 
-	ld l, $0b;							// 
-	rst $30;							// 
-	nop;								// 
-	pop hl;								// 
-	ld l, 0;							// 
-	ld c, $7f;							// 
-	xor a;								// 
+; // directory buffer setup and validation function
+L34CA:
+	ld de, $2d00;						// load directory buffer address
+	ld hl, $40;							// load source filename template
+	ld bc, $0b;							// load filename length (11 characters)
+	ldir;								// copy filename template to buffer
+	ld hl, ($3c23);						// load cluster/directory information
+	ld e, $0f;							// set directory attributes offset
+	ld bc, 8;							// set attribute field size
+	rst $30;							// call ROM calculator routine
+	rlca;								// rotate accumulator left
+	xor a;								// clear accumulator
+	ld (de), a;							// clear directory field
+	ld h, d;							// copy D to H
+	ld l, e;							// copy E to L 
+	inc e;								// increment directory pointer
+	ld bc, $67;							// load clear size (103 bytes)
+	ldir;								// clear remaining directory fields
+	push de;							// save directory entry pointer
+	ld l, $10;							// offset to cluster field
+	ld e, (hl);							// load cluster low byte
+	inc l;								// increment to cluster high byte
+	ld d, (hl);							// load cluster high byte
+	ld b, a;							// copy accumulator to B
+	ld c, a;							// copy accumulator to C
+	push hl;							// save cluster pointer
+	ld hl, $80;							// load sector size constant
+	call L0831;							// call arithmetic function
+	pop hl;								// restore cluster pointer
+	ld l, $0b;							// offset to attributes field
+	rst $30;							// call ROM calculator routine
+	nop;								// padding instruction
+	pop hl;								// restore entry pointer
+	ld l, 0;							// reset to entry start
+	ld c, $7f;							// load checksum counter (127 bytes)
+	xor a;								// clear accumulator for checksum
 
 L3503:
-	add a, (hl);						// 
-	cpi;								// 
-	jp pe, L3503;						// 
-	ld (hl), a;							// 
-	ret;								// 
+	add a, (hl);						// add directory byte to checksum
+	cpi;								// compare and increment, decrement BC
+	jp pe, L3503;						// loop while parity even (BC not zero)
+	ld (hl), a;							// store calculated checksum
+	ret;								// return from checksum calculation
 
-	call L11C3;							// 
-	ld a, b;							// 
-	inc a;								// 
-	jr nz, L3519;						// 
-	call L352D;							// 
-	cp 9;								// 
-	scf;								// 
-	ret nz;								// 
+; // memory validation and arithmetic function
+L350A:
+	call L11C3;							// call memory bounds checking function
+	ld a, b;							// load B register value
+	inc a;								// increment for boundary test
+	jr nz, L3519;						// jump if not at memory boundary
+	call L352D;							// call memory allocation function
+	cp 9;								// check for error code 9 (out of memory)
+	scf;								// set carry flag (error condition)
+	ret nz;								// return if error occurred
 
 L3519:
-	call L11D0;							// 
-	ld a, (iy + _x_ptr);				// 
+	call L11D0;							// call memory setup function
+	ld a, (iy + _x_ptr);				// load X pointer from system variables
 
 L351F:
-	srl a;								// 
-	ccf;								// 
-	ret nc;								// 
-	sla e;								// 
-	rl d;								// 
-	rl c;								// 
-	rl b;								// 
-	jr L351F;							// 
+	srl a;								// shift right A register
+	ccf;								// complement carry flag
+	ret nc;								// return if no carry (shift complete)
+	sla e;								// shift left E register
+	rl d;								// rotate left D register with carry
+	rl c;								// rotate left C register with carry
+	rl b;								// rotate left B register with carry
+	jr L351F;							// loop for multi-precision left shift
 
 L352D:
-	res 3, (iy + _oldppc);				// 
-	exx;								// 
-	ld bc, 0;							// 
-	ld de, 2;							// 
-	call L10BA;							// 
-	ret c;								// 
+	res 3, (iy + _oldppc);				// clear memory management flag bit 3
+	exx;								// switch to alternate register set
+	ld bc, 0;							// clear BC register pair
+	ld de, 2;							// load minimum allocation size
+	call L10BA;							// call memory allocation function
+	ret c;								// return if allocation failed
 
 L353C:
-	call L305E;							// 
-	exx;								// 
-	call L081C;							// 
-	ret c;								// 
-	exx;								// 
-	jr L353C;							// 
-	call L19C6;							// 
-	or a;								// 
-	ret;								// 
+	call L305E;							// call memory management function
+	exx;								// switch to alternate register set
+	call L081C;							// call 32-bit increment function
+	ret c;								// return if arithmetic overflow
+	exx;								// switch back to main register set
+	jr L353C;							// loop for memory block processing
+; // return point from memory allocation loop
+L3546:
+	call L19C6;							// call file position function
+	or a;								// clear carry flag (success)
+	ret;								// return from memory allocation
 
-	push hl;							// 
-	ld b, 0;							// 
-	call L33D2;							// 
-	pop hl;								// 
-	ret c;								// 
-	ld a, ($3df8);						// 
-	ld c, a;							// 
-	ld a, ($3df9);						// 
-	ld ($3df8), a;						// 
-	push hl;							// 
-	push bc;							// 
-	call L3570;							// 
-	pop bc;								// 
-	pop hl;								// 
-	push af;							// 
-	ld a, c;							// 
-	ld ($3df8), a;						// 
-	pop af;								// 
-	ret c;								// 
-	ld a, $80;							// 
-	jr L359F;							// 
+; // directory entry removal with state management
+L354B:
+	push hl;							// save filename pointer
+	ld b, 0;							// clear operation mode flag
+	call L33D2;							// call file creation function
+	pop hl;								// restore filename pointer
+	ret c;								// return if operation failed
+	ld a, ($3df8);						// load original state flag
+	ld c, a;							// save in C register
+	ld a, ($3df9);						// load new state flag
+	ld ($3df8), a;						// update state flag
+	push hl;							// save registers
+	push bc;							// save state information
+	call L3570;							// call directory validation
+	pop bc;								// restore state information
+	pop hl;								// restore registers
+	push af;							// save operation result
+	ld a, c;							// load original state
+	ld ($3df8), a;						// restore original state
+	pop af;								// restore operation result
+	ret c;								// return if validation failed
+	ld a, $80;							// load file operation code
+	jr L359F;							// jump to file deletion
 
 L3570:
-	ld b, 0;							// 
+	ld b, 0;							// initialize directory entry counter
 
+; // directory entry validation loop
 L3572:
-	ld hl, $2d40;						// 
-	push bc;							// 
-	push hl;							// 
-	call L3402;							// 
-	pop hl;								// 
-	pop bc;								// 
-	ret c;								// 
-	and a;								// 
-	jr z, L358B;						// 
-	inc b;								// 
-	inc hl;								// 
-	ld a, (hl);							// 
+	ld hl, $2d40;						// load directory entry buffer
+	push bc;							// save entry counter
+	push hl;							// save buffer pointer
+	call L3402;							// call directory read function
+	pop hl;								// restore buffer pointer
+	pop bc;								// restore entry counter
+	ret c;								// return if read failed
+	and a;								// test if entry found
+	jr z, L358B;						// jump if no entry found
+	inc b;								// increment entry count
+	inc hl;								// move to next entry
+	ld a, (hl);							// load entry character
 	cp '.';								// $2e
-	jr z, L3572;						// 
+	jr z, L3572;						// loop if dot entry (current/parent dir)
 
+; // directory entry count validation error
 L3587:
-	ld a, $1b;							// 
-	scf;								// 
-	ret;								// 
+	ld a, $1b;							// load error code 27 (directory not empty)
+	scf;								// set carry flag (error condition)
+	ret;								// return with error
 
+; // validate directory entry count
 L358B:
-	ld a, b;							// 
-	cp 2;								// 
-	jr nz, L3587;						// 
-	ld a, ($3c06);						// 
+	ld a, b;							// load entry count
+	cp 2;								// compare with 2 (only . and .. should remain)
+	jr nz, L3587;						// jump to error if more entries exist
+	ld a, ($3c06);						// load first character of filename
 	cp '.';								// $2e
-	jr nz, L359B;						// 
-	ld a, 8;							// 
-	scf;								// 
-	ret;								// 
+	jr nz, L359B;						// jump if not dot directory
+	ld a, 8;							// load error code 8 (invalid operation)
+	scf;								// set carry flag (error condition)
+	ret;								// return with error
 
 L359B:
-	or a;								// 
-	ret;								// 
+	or a;								// clear carry flag (success)
+	ret;								// return from validation
 
-	ld a, 0;							// 
+; // file deletion handler continuation
+L359D:
+	ld a, 0;							// clear operation mode
 
 L359F:
-	call L1524;							// 
-	ret c;								// 
-	call L1773;							// 
-	call L115C;							// 
-	call L1A07;							// 
-	call L163E;							// 
-	ld hl, $1a65;						// 
-	ld ($3dee), hl;						// 
-	call L1A21;							// 
-	ld a, $17;							// 
-	jr c, L35DE;						// 
-	ld l, (ix + $1C);					// 
-	ld h, (ix + $1D);					// 
-	push hl;							// 
-	ld a, $0b;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	bit 0, (hl);						// 
-	pop hl;								// 
-	ld a, $18;							// 
-	scf;								// 
-	jr nz, L35DE;						// 
-	ld (hl), $e5;						// 
-	push bc;							// 
-	push de;							// 
-	call L17E7;							// 
-	pop de;								// 
-	pop bc;								// 
-	call nc, L3108;						// 
-	call nc, L10F3;						// 
+	call L1524;							// call file lookup function
+	ret c;								// return if lookup failed
+	call L1773;							// call file validation function
+	call L115C;							// call file descriptor setup
+	call L1A07;							// call file allocation function
+	call L163E;							// call directory access setup
+	ld hl, $1a65;						// load completion handler address
+	ld ($3dee), hl;						// store completion handler pointer
+	call L1A21;							// execute completion handler
+	ld a, $17;							// load error code 23 (file operation failed)
+	jr c, L35DE;						// jump to error handler if operation failed
+	ld l, (ix + $1C);					// load directory entry pointer low byte
+	ld h, (ix + $1D);					// load directory entry pointer high byte
+	push hl;							// save directory entry pointer
+	ld a, $0b;							// offset to file attributes
+	add a, l;							// add offset to entry pointer
+	ld l, a;							// update pointer to attributes
+	bit 0, (hl);						// check read-only attribute
+	pop hl;								// restore directory entry pointer
+	ld a, $18;							// load error code 24 (file is read-only)
+	scf;								// set carry flag (error condition)
+	jr nz, L35DE;						// jump to error handler if read-only
+	ld (hl), $e5;						// mark directory entry as deleted
+	push bc;							// save BC register
+	push de;							// save DE register
+	call L17E7;							// call directory sector write
+	pop de;								// restore DE register
+	pop bc;								// restore BC register
+	call nc, L3108;						// call cluster deallocation if write succeeded
+	call nc, L10F3;						// call file descriptor cleanup if successful
 
+; // file deletion error handler
 L35DE:
-	ld (ix + 0), 0;						// 
-	ret;								// 
+	ld (ix + 0), 0;						// clear file descriptor status
+	ret;								// return with error condition
 
-	ld b, 1;							// 
-	push hl;							// 
-	push de;							// 
-	call L16DE;							// 
-	pop de;								// 
-	pop hl;								// 
-	jr nc, L35FA;						// 
-	cp $10;								// 
-	scf;								// 
-	ret nz;								// 
-	push de;							// 
-	ld b, 0;							// 
-	call L33D2;							// 
-	pop de;								// 
-	ret c;								// 
+; // directory management with file creation
+L35E1:
+	ld b, 1;							// set directory creation flag
+	push hl;							// save directory name pointer
+	push de;							// save registers
+	call L16DE;							// call directory creation function
+	pop de;								// restore registers
+	pop hl;								// restore directory name pointer
+	jr nc, L35FA;						// jump if creation successful
+	cp $10;								// check for error code 16 (directory exists)
+	scf;								// set carry flag (error condition)
+	ret nz;								// return if other error
+	push de;							// save registers for file creation
+	ld b, 0;							// clear creation mode (file not directory)
+	call L33D2;							// call file creation function
+	pop de;								// restore registers
+	ret c;								// return if file creation failed
 
 L35FA:
-	ex de, hl;							// 
-	call L35FF;							// 
-	ret;								// 
+	ex de, hl;							// exchange DE and HL registers
+	call L35FF;							// call directory processing function
+	ret;								// return from directory management
 
+; // directory entry setup and attribute management  
 L35FF:
-	push hl;							// 
-	ld hl, $2d00;						// 
-	ld a, (iy + 0);						// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld a, (iy + 1);						// 
-	ld (hl), a;							// 
-	call L16CB;							// 
-	pop de;								// 
-	ret c;								// 
-	push de;							// 
-	ex de, hl;							// 
-	ld hl, $2d02;						// 
-	ld a, $0b;							// 
-	ld c, a;							// 
-	add a, e;							// 
-	ld e, a;							// 
-	ld a, (de);							// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld a, c;							// 
-	add a, e;							// 
-	ld e, a;							// 
-	ex de, hl;							// 
-	ld bc, 4;							// 
-	ldir;								// 
-	ex de, hl;							// 
-	call L19E0;							// 
-	rst $30;							// 
-	nop;								// 
-	pop de;								// 
-	ld hl, $2d00;						// 
-	ld bc, $0b;							// 
-	rst $30;							// 
-	ld b, $b7;							// 
-	jp L16BE;							// 
-	ld a, 0;							// 
-	call L1524;							// 
-	ret c;								// 
-	call L1773;							// 
-	call L115C;							// 
-	call L1A07;							// 
-	ld l, (ix + $1C);					// 
-	ld h, (ix + $1D);					// 
-	ld a, $0b;							// 
-	add a, l;							// 
-	ld l, a;							// 
-	bit 0, (hl);						// 
-	ld a, $18;							// 
-	scf;								// 
-	jr nz, L3668;						// 
-	ld b, 0;							// 
-	ld c, b;							// 
-	ld d, c;							// 
-	ld e, d;							// 
-	call L3183;							// 
-	call L163E;							// 
-	call L367F;							// 
+	push hl;							// save directory entry pointer
+	ld hl, $2d00;						// load directory buffer address
+	ld a, (iy + 0);						// load system variable byte 0
+	ld (hl), a;							// store in directory buffer
+	inc hl;								// increment buffer pointer
+	ld a, (iy + 1);						// load system variable byte 1
+	ld (hl), a;							// store in directory buffer
+	call L16CB;							// call directory sector access
+	pop de;								// restore directory entry pointer
+	ret c;								// return if sector access failed
+	push de;							// save directory entry pointer again
+	ex de, hl;							// exchange DE and HL
+	ld hl, $2d02;						// load directory data buffer
+	ld a, $0b;							// load attributes offset
+	ld c, a;							// save offset in C
+	add a, e;							// add offset to entry pointer
+	ld e, a;							// update entry pointer
+	ld a, (de);							// load file attributes
+	ld (hl), a;							// store attributes in buffer
+	inc hl;								// increment buffer pointer
+	ld a, c;							// restore attributes offset
+	add a, e;							// add to entry pointer
+	ld e, a;							// update entry pointer
+	ex de, hl;							// exchange DE and HL
+	ld bc, 4;							// load copy count (4 bytes)
+	ldir;								// copy directory entry data
+	ex de, hl;							// exchange DE and HL back
+	call L19E0;							// call buffer management function
+	rst $30;							// call ROM calculator
+	nop;								// padding instruction
+	pop de;								// restore directory entry pointer
+	ld hl, $2d00;						// load directory buffer address
+	ld bc, $0b;							// load filename length
+	rst $30;							// call ROM calculator
+	ld b, $b7;							// load operation code
+	jp L16BE;							// jump to directory completion handler
+; // file truncation function
+L3640:
+	ld a, 0;							// clear operation mode (truncate)
+	call L1524;							// call file lookup function
+	ret c;								// return if lookup failed
+	call L1773;							// call file validation
+	call L115C;							// call file descriptor setup
+	call L1A07;							// call file allocation
+	ld l, (ix + $1C);					// load directory entry pointer low
+	ld h, (ix + $1D);					// load directory entry pointer high
+	ld a, $0b;							// offset to attributes field
+	add a, l;							// add offset to pointer
+	ld l, a;							// update pointer to attributes
+	bit 0, (hl);						// check read-only attribute
+	ld a, $18;							// load error code 24 (read-only)
+	scf;								// set carry flag (error)
+	jr nz, L3668;						// jump to error if read-only
+	ld b, 0;							// clear 32-bit value
+	ld c, b;							// clear C register
+	ld d, c;							// clear D register  
+	ld e, d;							// clear E register
+	call L3183;							// call file buffer sync
+	call L163E;							// call directory access
+	call L367F;							// call truncation completion
 
 L3668:
 	push af;							// 
@@ -7956,13 +7976,15 @@ L3668:
 	pop af;								// 
 	ret;								// 
 
-	bit 1, (ix + $01);					// 
-	ld a, 8;							// 
-	scf;								// 
-	ret z;								// 
-	call L19C6;							// 
-	call L3183;							// 
-	call L1142;							// 
+; // file write operation with validation
+L366D:
+	bit 1, (ix + $01);					// check file write flag (bit 1)
+	ld a, 8;							// load error code 8 (file not open for write)
+	scf;								// set carry flag (error condition)
+	ret z;								// return if file not open for writing
+	call L19C6;							// call file position function
+	call L3183;							// call buffer synchronization
+	call L1142;							// call write operation handler
 
 L367F:
 	call L3108;							// system processing call
