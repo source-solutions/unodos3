@@ -4342,31 +4342,34 @@ L1773:
 	ld (ix + 0), a;						// store error in file descriptor
 	ret;								// return from function
 
+; // clear directory buffer based on address alignment
 L177A:
-	ld a, h;							// 
-	and %00000001;						// 
-	add a, l;							// 
-	ld bc, L001F;						// 
-	jr nz, L1794;						// 
-	set 2, (ix + 1);					// 
-	call L1250;							// 
-	res 2, (ix + 1);					// 
-	ld hl, $2600;						// 
-	ld bc, $01ff;						// 
+	ld a, h;							// load high byte of address
+	and %00000001;						// check if address is odd (bit 0)
+	add a, l;							// add to low byte for alignment check
+	ld bc, L001F;						// load default clear size (31 bytes)
+	jr nz, L1794;						// jump to clear if not aligned
+	set 2, (ix + 1);					// set buffer operation flag
+	call L1250;							// call sector processing function
+	res 2, (ix + 1);					// clear buffer operation flag
+	ld hl, $2600;						// load sector buffer address
+	ld bc, $01ff;						// load full sector size (511 bytes)
 
+; // clear memory buffer with zeros
 L1794:
-	ld a, (hl);							// 
-	ld d, h;							// 
-	ld e, l;							// 
-	inc de;								// 
-	ld (hl), 0;							// 
-	ldir;								// 
-	call L17E7;							// 
-	ret;								// 
+	ld a, (hl);							// load byte from buffer (will be overwritten)
+	ld d, h;							// copy source address high to destination
+	ld e, l;							// copy source address low to destination
+	inc de;								// increment destination pointer
+	ld (hl), 0;							// store zero at source address
+	ldir;								// copy zeros to clear entire buffer
+	call L17E7;							// call directory sector write function
+	ret;								// return from clear operation
 
+; // create new directory entry from filename
 L17A0:
-	ld hl, $3c06;						// 
-	ld bc, $0b;							// 
+	ld hl, $3c06;						// load formatted filename buffer address
+	ld bc, $0b;							// load filename length (11 characters FAT format)
 	ldir;								// copy filename to directory entry
 	xor a;								// clear accumulator
 	ld (de), a;							// null-terminate filename
