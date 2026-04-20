@@ -1954,12 +1954,12 @@ search_file_handles:
 	pop bc;								// restore BC register
 	ret c;								// return if error occurred
 	ld a, c;							// get handle number back
-	jp close_handle_slot;							// jump to handle completion
+	jp close_handle_slot;				// jump to handle completion
 	ld ($3df4), hl;						// save HL register 
 	ld ($3dfa), a;						// save accumulator
 	ld ($3df6), bc;						// save BC register
 	ld ($3df2), de;						// save DE register
-	call find_file_handle;							// call system routine
+	call find_file_handle;				// call system routine
 	ccf;								// complement carry flag
 	ld a, $1f;							// error code: invalid file handle
 	ret c;								// return if error
@@ -2576,7 +2576,7 @@ cleanup_and_exit:
 	jp L1FFB;							// unmap and jump to NMI routine
 
 memory_init_routine:
-	call read_file_to_page2;				// call memory cleanup routine
+	call read_file_to_page2;			// call memory cleanup routine
 	jp c, $20;							// jump if carry set
 	call open_screen_channel;			// call additional cleanup
 	ld hl, ($2e46);						// get memory pointer
@@ -2765,7 +2765,7 @@ L0E80:
 	ld bc, 0;							// clear BC register pair
 	ld de, 0;							// clear DE register pair
 	push hl;							// save HL on stack
-	call L1096;							// call function at L1096
+	call read_disk_sector;				// call function at L1096
 	pop hl;								// restore HL from stack
 	jr c, clear_error_set_carry;		// jump to error handler if carry
 	inc h;								// increment H register
@@ -2822,10 +2822,12 @@ L0EBF:
 	ld l, $36;							// point to memory location $36
 	cp '1';								// $49
 	ld a, 0;							// load 0 into accumulator
-	jr z, L0EE9;						// jump if character is '1'
+	jr z, process_fs_mode;				// jump if character is '1'
 	ld l, $52;							// point to memory location $52
 	inc a;								// increment accumulator (set to 1)
 
+; // process filesystem mode and parameters
+process_fs_mode:
 L0EE9:
 	ld (iy + 28), a;					// store accumulator at IY+28 (mode flag)
 	push de;							// save DE register pair
@@ -2836,7 +2838,7 @@ L0EE9:
 	ldir;								// copy 5 bytes from HL to DE
 	pop de;								// restore DE register pair
 	cp 1;								// compare accumulator with 1
-	jr z, L0F3E;						// jump if equals 1
+	jr z, process_fat_parameters;		// jump if equals 1
 	push hl;							// save HL register pair
 	ld l, $16;							// point to memory location $16
 	ld a, (hl);							// load low byte from memory
@@ -2871,8 +2873,10 @@ L0EE9:
 	ld (iy + 66), l;					// store result at IY+66
 	ld bc, 0;							// clear BC register pair
 	call add_32bit;						// call subroutine at L0831
-	jr L0F68;							// jump to L0F68
+	jr calculate_cluster_params;		// jump to L0F68
 
+; // process FAT parameters for FAT16
+process_fat_parameters:
 L0F3E:
 	push iy;							// push IY onto stack
 	pop de;								// pop into DE (copy IY to DE)
@@ -2896,6 +2900,8 @@ L0F3E:
 	rl b;								// rotate B left through carry
 	call L1173;							// call subroutine at L1173
 
+; // calculate cluster parameters and free space
+calculate_cluster_params:
 L0F68:
 	ld h, 0;							// clear H register
 	ld l, (iy + 37);					// load value from IY+37 into L
@@ -2906,13 +2912,15 @@ L0F68:
 	ld (iy + 44), c;					// store C at IY+44
 	ld (iy + 43), d;					// store D at IY+43
 	ld (iy + 42), e;					// store E at IY+42
-	call L0F8E;							// call subroutine at L0F8E
-	call L0FBE;							// call subroutine at L0FBE
-	call L1065;							// call subroutine at L1065
-	call L1021;							// call subroutine at L1021
+	call calculate_free_clusters;		// call subroutine at L0F8E
+	call process_directory_entry;		// call subroutine at L0FBE
+	call init_volume_path;				// call subroutine at L1065
+	call process_volume_label;			// call subroutine at L1021
 	or a;								// clear carry flag
 	ret;								// return from subroutine
 
+; // calculate free clusters from sectors
+calculate_free_clusters:
 L0F8E:
 	ld h, (iy + 25);					// load high byte from IY+25
 	ld l, (iy + 24);					// load low byte from IY+24
@@ -2924,15 +2932,19 @@ L0F8E:
 	sbc hl, bc;							// subtract BC from HL with carry
 	ld a, (iy + 37);					// get sectors per cluster value (power of 2)
 
+; // cluster calculation shift loop
+cluster_shift_loop:
 L0Fa3:
 	srl a;								// shift sectors per cluster right (find shift count)
-	jr c, L0FB1;						// jump if bit was 1 (found the shift count)
+	jr c, store_cluster_results;		// jump if bit was 1 (found the shift count)
 	srl h;								// shift result high word right
 	rr l;								// rotate result through carry
 	rr d;								// rotate result through carry
 	rr e;								// rotate result low byte through carry
-	jr L0Fa3;							// loop back to check next bit
+	jr cluster_shift_loop;				// loop back to check next bit
 
+; // store cluster calculation results
+store_cluster_results:
 L0FB1:
 	ld (iy + 62), e;					// store E at IY+62 (result low byte)
 	ld (iy + 63), d;					// store D at IY+63 (result mid byte)
@@ -2940,6 +2952,8 @@ L0FB1:
 	ld (iy + 65), h;					// store H at IY+65 (result top byte)
 	ret;								// return from subroutine
 
+; // process directory entry information
+process_directory_entry:
 L0FBE:
 	ld a, (iy + 28);					// load mode flag from IY+28
 	cp 1;								// compare with 1
@@ -2952,7 +2966,7 @@ L0FBE:
 	ld bc, 0;							// clear BC register pair
 	ld de, 1;							// set DE to 1
 	push hl;							// save HL on stack
-	call L1096;							// call subroutine at L1096
+	call read_disk_sector;				// call subroutine at L1096
 	pop hl;								// restore HL from stack
 	jr c, $100f;						// jump if carry set (error)
 	inc h;								// increment high byte of address
@@ -2993,50 +3007,66 @@ L0FBE:
 	ld de, 2;							// set DE to 2
 	jp L11B6;							// jump to L11B6
 
+; // process volume label and disk information
+process_volume_label:
 L1021:
 	ld hl, $1416;						// load address $1416
 	ld a, 8;							// set A to 8
 	call L1470;							// call subroutine at L1470
-	jr nc, L102E;						// jump if no carry (success)
+	jr nc, setup_label_copy;			// jump if no carry (success)
 	ld hl, $2d2b;						// load address $2D2B
 
+; // setup label copy parameters
+setup_label_copy:
 L102E:
 	push iy;							// save IY register
 	pop de;								// copy IY address to DE
 	ld e, $0c;							// set E to offset $0C
 	ld a, (hl);							// load value from memory
 	and a;								// test if zero
-	jr nz, L103A;						// jump if not zero
+	jr nz, copy_label_string;			// jump if not zero
 
+; // use default no name label
+use_default_label:
 L1037:
-	ld hl, L105C;						// point to default "NO NAME" string
+	ld hl, default_label_string;		// point to default "NO NAME" string
 
+; // call string copy subroutine
+copy_label_string:
 L103A:
-	call L103E;							// call string copy subroutine
+	call copy_string_limited;			// call string copy subroutine
 	ret;								// return from routine
 
+; // copy string with length limit
+copy_string_limited:
 L103E:
 	ld b, $0b;							// set counter to 11 characters
 
+; // character copy loop
+char_copy_loop:
 L1040:
 	ld a, (hl);							// load character from source
 	cp ' ';								// $20
-	jr z, L104B;						// jump if space character
+	jr z, handle_space_chars;			// jump if space character
 
+; // store character and continue
+store_char_continue:
 L1045:
 	ld (de), a;							// store character at destination
 	inc hl;								// increment source pointer
 	inc de;								// increment destination pointer
-	djnz L1040;							// decrement B and loop if not zero
+	djnz char_copy_loop;				// decrement B and loop if not zero
 	ret;								// return from routine
 
+; // handle space characters in label
+handle_space_chars:
 L104B:
 	inc hl;								// move to next character
 	ld a, (hl);							// load next character
 	cp ' ';								// $20
 	dec hl;								// move back to space
 	ld a, (hl);							// reload space character
-	jr nz, L1045;						// continue copying if next char not space
+	jr nz, store_char_continue;			// continue copying if next char not space
 	ld a, b;							// check remaining count
 	cp $0b;								// compare with 11
 	jr z, L1037;						// jump to default name if no chars copied
@@ -3044,11 +3074,15 @@ L104B:
 	ld (de), a;							// null terminate string
 	ret;								// return from routine
 
+; // default disk label string
+default_label_string:
 L105C:
 	defb "NO NAME  ";					// if disk has no label
+; // initialize volume path string
+init_volume_path:
 L1065:
 	call L1169;							// call subroutine at L1169
-	call L107B;							// call subroutine at L107B
+	call store_fs_parameters;			// call subroutine at L107B
 	push iy;							// push IY register onto stack
 	pop hl;								// pop into HL (copy IY to HL)
 	ld l, $80;							// set L to offset $80
@@ -3061,18 +3095,24 @@ L1065:
 	ld (hl), a;							// store 0 (null terminator)
 	ret;								// return from routine
 
+; // store filesystem parameters
+store_fs_parameters:
 L107B:
 	ld a, (iy + 28);					// load mode flag from IY+28
 	cp 1;								// compare with 1
-	jr nz, L1089;						// jump if not equal to 1
+	jr nz, store_param_values;			// jump if not equal to 1
 	ld a, d;							// load D register
 	or b;								// OR with B register
 	or c;								// OR with C register
 
+; // check if all registers zero
+check_all_zero:
 L1085:
 	or e;								// OR with E register (check if all zero)
 	call z, L1169;						// call L1169 if all registers are zero
 
+; // store parameter values
+store_param_values:
 L1089:
 	ld (iy + 49), b;					// store B register at IY+49
 	ld (iy + 48), c;					// store C register at IY+48
@@ -3080,6 +3120,8 @@ L1089:
 	ld (iy + 46), e;					// store E register at IY+46
 	ret;								// return from routine
 
+; // read disk sector function
+read_disk_sector:
 L1096:
 	push bc;							// save BC register pair
 	push de;							// save DE register pair
@@ -3090,12 +3132,16 @@ L1096:
 	pop bc;								// restore BC register pair
 	ret;								// return from routine
 
+; // write disk sector function
+write_disk_sector:
 L10A0:
 	ld a, (iy + _flags);				// load flags from IY+_flags
 	rst $08;							// system call
 	defb disk_write;					// disk write operation
 	ret;								// return from routine
 
+; // write sector with current drive
+write_current_drive:
 L10A6:
 	push bc;							// save BC register pair
 	push de;							// save DE register pair
@@ -3108,11 +3154,11 @@ L10A6:
 
 L10B0:
 	call L117F;							// load cluster start address
-	jr L10A6;							// jump to disk write routine
+	jr write_current_drive;				// jump to disk write routine
 
 L10B5:
 	call L117F;							// load cluster start address
-	jr L1096;							// jump to disk read routine
+	jr read_disk_sector;				// jump to disk read routine
 
 L10BA:
 	ld a, ($3c25);						// get current drive number
@@ -3132,7 +3178,7 @@ L10C8:
 	push hl;							// save HL register
 	call L1173;							// calculate sector address
 	push hl;							// save calculated address
-	call L1096;							// read sector from disk
+	call read_disk_sector;				// read sector from disk
 	pop hl;								// restore calculated address
 	call c, L10B5;						// if read failed, try write operation
 	pop hl;								// restore HL register
@@ -3176,7 +3222,7 @@ L1111:
 	push hl;							// save buffer address
 	call L1173;							// calculate final sector address
 	push hl;							// save calculated address
-	call L10A6;							// write buffer to disk
+	call write_current_drive;			// write buffer to disk
 	pop hl;								// restore calculated address
 	jr c, L1129;						// jump if write error
 	call L10B0;							// perform additional write operation
@@ -3317,11 +3363,11 @@ L11DD:
 	ld hl, $3e00;						// load directory buffer address
 	ld bc, 0;							// clear cluster offset
 	ld de, 1;							// set sector count to 1
-	jp L10A0;							// jump to sector read routine
+	jp write_disk_sector;				// jump to sector read routine
 
 L11FB:
 	call L115C;							// call sector loading function
-	call L1096;							// call directory processing
+	call read_disk_sector;				// call directory processing
 	ret;								// return from function
 
 L1202:
@@ -7157,7 +7203,7 @@ L3122:
 
 L313C:
 	call L115C;							// call file descriptor function
-	jp L10A0;							// jump to file operations handler
+	jp write_disk_sector;				// jump to file operations handler
 	bit 1, (ix + $01);					// check file operation flag bit 1
 	ld a, 8;							// load error code 8 (file not open)
 	scf;								// set carry flag for error
@@ -7562,7 +7608,7 @@ L33A2:
 	call L1524;							// call file lookup function
 	ret c;								// return if lookup failed
 	call L163E;							// call file access setup function
-	call L107B;							// call file descriptor initialization
+	call store_fs_parameters;			// call file descriptor initialization
 	ld hl, $2c80;						// load file buffer address
 	ld a, ($3dea);						// load system variable
 	ld (iy + $7f), a;					// store in descriptor offset
@@ -7708,7 +7754,7 @@ L347B:
 	call L1265;							// call date conversion function
 	ld hl, $2600;						// load date output buffer
 	push hl;							// save buffer pointer
-	call L1096;							// call date formatting function
+	call read_disk_sector;				// call date formatting function
 	pop hl;								// restore buffer pointer
 
 ; // date processing completion handler
