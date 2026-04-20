@@ -304,7 +304,7 @@ memory_init_complete:
 	ld (chars), hl;						// set character set pointer (from verbose call)
 	ld hl, copyright;					// point to copyright message string
 	call pr_str;						// print copyright message
-	call L031C;							// setup system vectors and initial configuration
+	call setup_vector_table;							// setup system vectors and initial configuration
 	call L03A7;							// additional system initialization
 	ld a, $3e;							// LD A,n instruction opcode
 	ld hl, $2007;						// code generation area
@@ -523,7 +523,7 @@ build_base_path:
 	inc de;								// advance destination pointer
 	ret;								// return with DE pointing after dot
 
-L031C:
+setup_vector_table:
 	ld hl, $2d24;						// point to vector table location
 	ld de, $1c6d;						// first vector address
 	ld (hl), e;							// store low byte of vector
@@ -537,7 +537,7 @@ L031C:
 	inc hl;								// advance to next vector slot
 	ret;								// vector table setup complete
 
-L032E:
+check_handle_limit:
 	ld c, a;							// save file handle in C
 	ld a, ($2d47);						// get current file handle count
 	cp 6;								// compare with maximum (6 handles)
@@ -545,16 +545,16 @@ L032E:
 	ret z;								// return if maximum handles reached
 	ld hl, $2c00;						// point to file handle table start
 
-L0339:
+find_free_handle_slot:
 	ld a, (hl);							// get file handle entry
 	and a;								// test if slot is free (zero)
-	jr z, L0343;						// jump if free slot found
+	jr z, store_handle_in_slot;						// jump if free slot found
 	ld a, $28;							// file handle entry size (40 bytes)
 	add a, l;							// advance to next handle slot
 	ld l, a;							// update pointer
-	jr L0339;							// check next slot
+	jr find_free_handle_slot;							// check next slot
 
-L0343:
+store_handle_in_slot:
 	ld (hl), c;							// store file handle in free slot
 	push hl;							// save handle slot address
 	pop iy;								// copy to IY register
@@ -562,8 +562,8 @@ L0343:
 	inc (hl);							// increment active handle count
 	ret;								// return with handle slot in IY
 
-L034C:
-	call L0363;							// find file handle slot
+close_handle_slot:
+	call find_file_handle;							// find file handle slot
 	ret c;								// return if handle not found
 	xor a;								// clear accumulator
 	ld (hl), a;							// clear the file handle slot
@@ -572,34 +572,34 @@ L034C:
 	or a;								// clear carry flag (success)
 	ret;								// return with success
 
-L0358:
+find_handle_with_setup:
 	push hl;							// save HL register
 	push bc;							// save BC register
-	call L0363;							// find file handle slot
+	call find_file_handle;							// find file handle slot
 	push hl;							// save handle slot address
 	pop iy;								// copy to IY register
 	pop bc;								// restore BC register
 	pop hl;								// restore HL register
 	ret;								// return with handle slot in IY
 
-L0363:
+find_file_handle:
 	ld c, a;							// save target handle in C
 	ld b, 6;							// maximum number of file handles
 	ld hl, $2c00;						// point to start of file handle table
 
-L0369:
+handle_search_loop:
 	ld a, (hl);							// get file handle from current slot
 	xor c;								// compare with target handle
 	and %11111000;						// mask out lower 3 bits
-	jr z, L0377;						// jump if match found
+	jr z, handle_found_check;						// jump if match found
 	ld a, $28;							// handle slot size (40 bytes)
 	add a, l;							// advance to next slot
 	ld l, a;							// update pointer
-	djnz L0369;							// continue search
+	djnz handle_search_loop;							// continue search
 	scf;								// set carry flag (handle not found)
 	ret;								// return with error
 
-L0377:
+handle_found_check:
 	ld a, (hl);							// get the found handle
 	cp c;								// compare with target
 	ret c;								// return with carry if less than target
@@ -607,7 +607,7 @@ L0377:
 	and %00000111;						// keep only lower 3 bits
 	ret;								// return with partial handle info
 
-L037E:
+memory_address_calc:
 	push hl;							// save HL register
 	ld hl, ($3dfb);						// get stored address from divMMC area
 	ex (sp), hl;						// exchange with saved HL on stack
@@ -727,7 +727,7 @@ L040F:
 	ld ($3df8), a;						// store current divMMC page number
 	ld h, d;							// copy address to HL
 	ld l, e;							// complete address transfer
-	call L037E;							// call address handling routine
+	call memory_address_calc;							// call address handling routine
 	jp L0B5A;							// jump to main processing routine
 
 L041E:
@@ -1954,12 +1954,12 @@ L09F6:
 	pop bc;								// restore BC register
 	ret c;								// return if error occurred
 	ld a, c;							// get handle number back
-	jp L034C;							// jump to handle completion
+	jp close_handle_slot;							// jump to handle completion
 	ld ($3df4), hl;						// save HL register 
 	ld ($3dfa), a;						// save accumulator
 	ld ($3df6), bc;						// save BC register
 	ld ($3df2), de;						// save DE register
-	call L0363;							// call system routine
+	call find_file_handle;							// call system routine
 	ccf;								// complement carry flag
 	ld a, $1f;							// error code: invalid file handle
 	ret c;								// return if error
@@ -1995,7 +1995,7 @@ L0A46:
 	ld a, ixh;							// get high byte of page settings
 	ld ixh, e;							// store call number in IXH
 	pop de;								// restore DE register
-	jp L0358;							// jump to handler (04_files.asm)
+	jp find_handle_with_setup;							// jump to handler (04_files.asm)
 	call L0A46;							// invoke file operation
 	ret c;								// return if error
 	push hl;							// save HL register
@@ -2185,7 +2185,7 @@ L0B2A:
 	ld a, ixl;							// get low byte of IX
 	ld ($3df8), a;						// save page settings
 	ld ($3df4), hl;						// save HL register
-	call L037E;							// call handler (04_files.asm)
+	call memory_address_calc;							// call handler (04_files.asm)
 	sub $18;							// subtract base offset (24) for handler index
 	ld l, (iy + _tv_flag);				// get TV flag for address calculation
 	ld h, (iy + _err_sp);				// get error stack pointer
@@ -2229,7 +2229,7 @@ L0B73:
 	and a;								// test file system type
 	jr z, L0BB8;						// jump if standard file system
 	ld b, a;							// save file system type
-	call L0358;							// call validation routine (04_files.asm)
+	call find_handle_with_setup;							// call validation routine (04_files.asm)
 	jr nc, L0B8F;						// continue if valid
 
 L0B8c:
@@ -5601,7 +5601,7 @@ L1E75:
 	jr L1E30;							// jump to completion
 
 L1E8A:
-	call L032E;							// call utility routine
+	call check_handle_limit;							// call utility routine
 	ld hl, L1C5F;						// load address of routine
 	ld (iy + _tv_flag), l;				// store low byte in TV flag
 	ld (iy + _err_sp), h;				// store high byte in error SP
@@ -6787,7 +6787,7 @@ L253A:
 	rst $08;							// call DOS function
 	defb f_fstat;						// get file status
 	pop af;								// restore accumulator
-	call L032E;							// call system function
+	call check_handle_limit;							// call system function
 	ld hl, $1a95;						// load address value
 	ld (iy + 2), l;						// store low byte in IY+2
 	ld (iy + 3), h;						// store high byte in IY+3
