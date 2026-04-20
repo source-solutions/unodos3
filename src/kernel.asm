@@ -1682,12 +1682,13 @@ L08D3:
 	rst $10;							// print a character
 	ret;								// return from function
 
+; // format file size with appropriate units (B/KB/MB)
 L08DA:
-	ld bc, $4200;						// 
-	ex af, af';';						// 
-	ld a, d;							// 
-	or e;								// 
-	jr z, L08F0;						// 
+	ld bc, $4200;						// B=$42 ('B' for bytes), C=0 (decimal places)
+	ex af, af';';						// save decimal places count in A'
+	ld a, d;							// check if size >= 1024 (test high word)
+	or e;								// combine DE to test for non-zero
+	jr z, L08F0;						// jump if size < 1024 (use bytes)
 	call L0902;							// divide by 1024 for KB
 	ld a, e;							// check if result >= 1024
 	or e;								// test if we need MB
@@ -1696,12 +1697,13 @@ L08DA:
 	call L0902;							// divide by 1024 again for MB
 	ld b, $4d;							// set unit to 'M' (megabytes)
 
+; // format number with decimal places and print
 L08F0:
-	push bc;							// 
-	ex af, af';';						// 
-	ld c, a;							// 
-	call L0861;							// 
-	pop bc;								// 
+	push bc;							// save unit character and decimal count
+	ex af, af';';						// restore decimal places from A'
+	ld c, a;							// store decimal places count in C
+	call L0861;							// format and print the number
+	pop bc;								// restore unit character
 	ld a, c;							// check decimal places count
 	or c;								// test if we have decimal places
 	ret z;								// return if no decimal places
