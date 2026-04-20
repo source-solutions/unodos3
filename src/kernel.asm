@@ -770,7 +770,7 @@ print_drive_info:
 	ld h, d;							// complete address setup
 	pop de;								// restore DE
 	push bc;							// save BC for later
-	call L089A;							// call formatting/display routine
+	call format_file_size;				// call formatting/display routine
 	ld a, $0d;							// carriage return character
 	rst $10;							// print newline
 	pop hl;								// restore pointer for next drive
@@ -1254,7 +1254,7 @@ mount_filesystems_loop:
 	ret z;								// return if zero flag set
 	ld l, a;							// store drive number in L register
 	push hl;							// save drive number on stack
-	call L0B19;							// call drive initialization routine
+	call init_file_handle;				// call drive initialization routine
 	pop hl;								// restore drive number from stack
 	ret c;								// return if carry set (error)
 	ld a, l;							// get drive number back
@@ -1612,47 +1612,47 @@ convert_digit_to_ascii:
 	ld a, $2f;							// start with ASCII '/' (one before '0')
 
 ;	// division loop to count digits
-L087F:
+division_loop:
 	inc a;								// increment ASCII digit counter
 	or a;								// clear carry flag for subtraction
 	sbc hl, de;							// subtract to count how many times DE fits in HL
-	jr nc, L087F;						// continue loop if result is positive
+	jr nc, division_loop;				// continue loop if result is positive
 	add hl, de;							// restore HL by adding back DE
 	cp $3a;								// check if digit is above '9' (hexadecimal)
-	jr nc, L0894;						// jump if hex digit (A-F)
+	jr nc, convert_hex_digit;			// jump if hex digit (A-F)
 	cp $30;								// check if digit is '0'
-	jr nz, L0896;						// jump if not zero
+	jr nz, print_digit;					// jump if not zero
 	ld a, c;							// load leading zero flag
 	or c;								// test if we should suppress leading zeros
 	call nz, restart_10;				// print character if not suppressing
 	ret;								// return from function
 
 ; // convert hex digit A-F by adding 7 to make it ASCII
-L0894:
+convert_hex_digit:
 	add a, 7;							// add 7 to convert hex digits A-F to ASCII
 
 ; // print the digit and set leading zero flag
-L0896:
+print_digit:
 	ld c, $30;							// set flag to enable printing of subsequent zeros
 	rst $10;							// print a character
 	ret;								// return from function
 
 ; // format file size for display - called from dirs.io
-L089A:
+format_file_size:
 	ld a, e;							// check high word of file size
 	or d;								// test if file size > 64KB
-	jr nz, L08AD;						// jump if large file (use MB/KB units)
+	jr nz, handle_large_files;			// jump if large file (use MB/KB units)
 	ld e, h;							// shift 16-bit size into DE
 	ld h, l;							// move low byte to H
 	ld l, 0;							// clear L (multiply by 256)
 	sla h;								// shift left to multiply by 2
 	rl e;								// rotate carry into E
 	rl d;								// rotate carry into D
-	call L08D3;							// format as bytes
-	jr L08CB;							// jump to add 'B' suffix
+	call format_number_with_units;		// format as bytes
+	jr add_bytes_suffix;				// jump to add 'B' suffix
 
 ; // handle large files - convert to MB
-L08AD:
+handle_large_files:
 	ld l, h;							// shift 32-bit value right 8 bits
 	ld h, e;							// move bytes for division
 	ld e, d;							// continue shifting
@@ -1667,12 +1667,12 @@ L08AD:
 	rr h;								// rotate right through H
 	rr l;								// rotate right through L
 	xor a;								// clear A for decimal places
-	call L08DA;							// format number with units
+	call format_size_with_units;		// format number with units
 	ld a, 'M';							// load 'M' for megabytes
 	rst $10;							// print a character
 
 ; // add 'B' suffix for bytes if not already present
-L08CB:
+add_bytes_suffix:
 	ld a, b;							// check unit suffix character
 	cp 'B';								// compare with 'B' ($42)
 	ret z;								// return if already 'B'
@@ -1681,30 +1681,30 @@ L08CB:
 	ret;								// return from function
 
 ; // format number and add unit suffix
-L08D3:
+format_number_with_units:
 	xor a;								// clear A (no decimal places)
-	call L08DA;							// format the number
+	call format_size_with_units;		// format the number
 	ld a, b;							// load unit character
 	rst $10;							// print a character
 	ret;								// return from function
 
 ; // format file size with appropriate units (B/KB/MB)
-L08DA:
+format_size_with_units:
 	ld bc, $4200;						// B=$42 ('B' for bytes), C=0 (decimal places)
 	ex af, af';';						// save decimal places count in A'
 	ld a, d;							// check if size >= 1024 (test high word)
 	or e;								// combine DE to test for non-zero
-	jr z, L08F0;						// jump if size < 1024 (use bytes)
-	call L0902;							// divide by 1024 for KB
+	jr z, format_with_decimal;			// jump if size < 1024 (use bytes)
+	call divide_by_1024;				// divide by 1024 for KB
 	ld a, e;							// check if result >= 1024
 	or e;								// test if we need MB
 	ld b, $4b;							// set unit to 'K' (kilobytes)
-	jr z, L08F0;						// jump if size < 1MB
-	call L0902;							// divide by 1024 again for MB
+	jr z, format_with_decimal;			// jump if size < 1MB
+	call divide_by_1024;				// divide by 1024 again for MB
 	ld b, $4d;							// set unit to 'M' (megabytes)
 
 ; // format number with decimal places and print
-L08F0:
+format_with_decimal:
 	push bc;							// save unit character and decimal count
 	ex af, af';';						// restore decimal places from A'
 	ld c, a;							// store decimal places count in C
@@ -1721,31 +1721,31 @@ L08F0:
 	ret;								// return from function
 
 ; // divide 24-bit number by 1024 (shift right 10 bits)
-L0902:
+divide_by_1024:
 	xor a;								// clear A (will hold remainder bits)
 	ld l, h;							// start shifting: L = H
 
 ; // division loop - shift right 10 times total (divide by 1024)
-L0904:
+shift_division_loop:
 	ld h, e;							// H = E (continue shifting)
 	ld e, d;							// E = D
 	ld d, a;							// D = A (remainder accumulator)
 	srl e;								// shift E right 1 bit
 	rr h;								// rotate H right (carry from E)
 	rr l;								// rotate L right (carry from H)
-	jr nc, L0911;						// jump if no remainder
+	jr nc, continue_division;			// jump if no remainder
 	add a, 2;							// add 2 to remainder (bit weight)
 
 ; // continue division by 1024 - second shift
-L0911:
+continue_division:
 	srl e;								// shift E right another bit
 	rr h;								// rotate H right (carry from E)
 	rr l;								// rotate L right (carry from H)
-	jr nc, L091B;						// jump if no remainder
+	jr nc, store_decimal_remainder;		// jump if no remainder
 	add a, 5;							// add 5 to remainder (bit weight)
 
 ; // store decimal remainder and return
-L091B:
+store_decimal_remainder:
 	ld c, a;							// store decimal remainder in C
 	ret;								// return with result in HLD, remainder in C
 
@@ -1769,8 +1769,8 @@ L091B:
 	exx;								// exchange register sets
 	add hl, bc;							// lookup table processing
 	call po, $0a;						// call if parity odd
-	jr nz, L093D;						// jump if not zero
-	jr nz, L0904;						// jump to division routine
+	jr nz, data_processing_section;		// jump if not zero
+	jr nz, shift_division_loop;			// jump to division routine
 	add hl, bc;							// lookup table processing
 	pop de;								// restore DE from stack
 	add hl, bc;							// lookup table processing
@@ -1778,7 +1778,7 @@ L091B:
 	inc h;								// increment H register
 
 ; // data processing and lookup table section
-L093D:
+data_processing_section:
 	and c;								// AND with C register
 	ld ($09c8), hl;						// store HL at memory address $09c8
 	ret z;								// return if zero
@@ -1874,7 +1874,7 @@ syscall_reg_save:
 	ld a, ixl;							// get low byte of page settings
 	ld (call_num), a;					// Store syscall number
 	push ix;							// save page settings
-	call L09B4;							// dispatch system call
+	call system_call_dispatch;			// dispatch system call
 	pop ix;								// restore page settings
 	ld iyl, a;							// save result
 	ld a, ixl;							// get original page
@@ -1884,17 +1884,17 @@ syscall_reg_save:
 	pop iy;								// restore index register Y
 	ret;								// return to caller
 
-L09B4:
+system_call_dispatch:
 	ld a, iyl;							// get system call number
 	push hl;							// save HL register
 	ld hl, $091d;						// point to system call table (04_files.asm)
 	add a, a;							// multiply by 2 (each entry is 2 bytes)
 	add a, l;							// add to table base address
 	ld l, a;							// store in L
-	jr nc, L09C0;						// if no carry, continue
+	jr nc, get_handler_address;			// if no carry, continue
 	inc h;								// handle carry to high byte
 
-L09C0:
+get_handler_address:
 	ld a, (hl);							// get low byte of handler address
 	inc hl;								// advance to high byte
 	ld h, (hl);							// get high byte of handler address
@@ -1918,12 +1918,12 @@ L09C0:
 	ret;								// return with default date/time
 
 	and a;								// test if drive number is zero
-	jr nz, L09E1;						// if not zero, set as current drive
+	jr nz, set_current_drive;			// if not zero, set as current drive
 	ld a, ($2d46);						// get current drive number
 	or a;								// set flags based on drive
 	ret;								// return with current drive
 
-L09E1:
+set_current_drive:
 	cp '*';								// use current drive? test for file commands
 	ret z;								// return if using current drive
 	ld c, a;							// save drive number
@@ -1938,7 +1938,7 @@ L09E1:
 	ld hl, $2d00;						// point to file handle table
 	ld b, $0c;							// 12 file handles to check
 
-L09F6:
+search_file_handles:
 	ld a, (hl);							// get handle entry
 	inc hl;								// advance to next field
 	inc hl;								// (each entry is 3 bytes)
@@ -1947,10 +1947,10 @@ L09F6:
 	cp c;								// compare with target handle
 	scf;								// set carry flag (assume found)
 	ret z;								// return if handle found
-	djnz L09F6;							// loop through all handles
+	djnz search_file_handles;			// loop through all handles
 	ld a, c;							// get handle number
 	push bc;							// save BC register
-	call L0A5F;							// call handle processing routine
+	call handle_file_operation;			// call handle processing routine
 	pop bc;								// restore BC register
 	ret c;								// return if error occurred
 	ld a, c;							// get handle number back
@@ -1965,7 +1965,7 @@ L09F6:
 	ret c;								// return if error
 	ld hl, $2d24;						// point to system data table
 
-L0A24:
+process_filesystem_table:
 	ld e, (hl);							// get low byte from table
 	inc hl;								// advance to next byte
 	ld d, (hl);							// get high byte from table
@@ -1976,12 +1976,12 @@ L0A24:
 	scf;								// set carry flag (error)
 	ret z;								// return if end of table
 	push hl;							// save HL register
-	call L0A36;							// get file system parameters
+	call get_filesystem_params;			// get file system parameters
 	pop hl;								// restore HL register
 	ret nc;								// return if no error
-	jr L0A24;							// handle error case
+	jr process_filesystem_table;		// handle error case
 
-L0A36:
+get_filesystem_params:
 	ld hl, ($3df4);						// get file system base address
 	ld bc, ($3df6);						// get file system parameters
 	ld a, ($3dfa);						// get stored A register value
@@ -1989,37 +1989,37 @@ L0A36:
 	ld de, ($3df2);						// get additional parameters
 	ret;								// return to caller
 
-L0A46:
+invoke_file_operation:
 	push de;							// save DE register
 	ld e, iyl;							// get system call number
 	ld a, ixh;							// get high byte of page settings
 	ld ixh, e;							// store call number in IXH
 	pop de;								// restore DE register
 	jp find_handle_with_setup;			// jump to handler (04_files.asm)
-	call L0A46;							// invoke file operation
+	call invoke_file_operation;			// invoke file operation
 	ret c;								// return if error
 	push hl;							// save HL register
-	call L0A77;							// process operation result
+	call process_file_comparison;		// process operation result
 	pop hl;								// restore HL register
-	jr nc, L0A63;						// if no error, continue
+	jr nc, process_operation_result;	// if no error, continue
 	ld a, $0a;							// error code: access denied
 	ret;								// return with error
 
-L0A5F:
-	call L0A46;							// invoke file operation
+handle_file_operation:
+	call invoke_file_operation;			// invoke file operation
 	ret c;								// return if error
 
-L0A63:
+process_operation_result:
 	push hl;							// save HL register
 	ld h, (iy + _err_sp);				// get error stack pointer
 	ld a, ixh;							// get operation type
 	add a, a;							// multiply by 2 for word index
 	add a, (iy + _tv_flag);				// add base offset
 	ld l, a;							// store in L
-	jr nc, L0A71;						// if no carry, continue
+	jr nc, get_handler_dispatch_addr;	// if no carry, continue
 	inc h;								// handle carry to high byte
 
-L0A71:
+get_handler_dispatch_addr:
 	ld a, (hl);							// get low byte of handler address
 	inc hl;								// advance to high byte
 	ld h, (hl);							// get high byte of handler address
@@ -2027,17 +2027,17 @@ L0A71:
 	ex (sp), hl;						// put handler address on stack
 	ret;								// "call" handler by returning to it
 
-L0A77:
+process_file_comparison:
 	push iy;							// save IY register
 	pop hl;								// copy IY to HL
 	and a;								// test A register
-	jr nz, L0A84;						// if not zero, branch
+	jr nz, calc_address_offset;			// if not zero, branch
 	ld a, 7;							// offset to compare value
 	add a, l;							// add to address
 	ld l, a;							// store result
 	jp compare_32bit;					// jump to comparison routine (04_files.asm)
 
-L0A84:
+calc_address_offset:
 	add a, a;							// shift A left (multiply by 2)
 	add a, a;							// shift A left again (multiply by 4)
 	add a, a;							// shift A left again (multiply by 8)
@@ -2066,7 +2066,7 @@ L0A84:
 	ld b, a;							// store updated high byte
 	ret;								// return with 32-bit sum in BCDE
 
-	call L0B19;							// call file operation handler
+	call init_file_handle;				// call file operation handler
 	ret c;								// return if operation failed
 	push hl;							// save HL register
 	ld hl, $2cf0;						// point to file handle table
@@ -2082,23 +2082,23 @@ L0A84:
 	pop hl;								// restore HL register
 	ret;								// return to caller
 
-	call L0AD0;							// call handle validation routine
+	call get_file_handle;				// call handle validation routine
 	ret c;								// return if validation failed
 	ld a, ixh;							// get handle number for cleanup
 	push af;							// save A register
 	ld hl, $2cf0;						// point to file handle table
-	call L0ACB;							// clear file handle entry
+	call clear_handle_entry;			// clear file handle entry
 	pop af;								// restore A register
 	ld hl, $2e22;						// point to drive table
 
-L0ACB:
+clear_handle_entry:
 	add a, l;							// add offset to base address
 	ld l, a;							// store result in L
 	xor a;								// clear accumulator
 	ld (hl), a;							// clear table entry
 	ret;								// return to caller
 
-L0AD0:
+get_file_handle:
 	push de;							// save DE register
 	ld de, $2cf0;						// point to file handle table
 	add a, e;							// add handle offset
@@ -2111,7 +2111,7 @@ L0AD0:
 	jr nz, L0B1E;						// if valid handle, continue
 	ld a, $0d;							// error code: invalid handle
 
-L0AE1:
+return_handle_error:
 	pop de;								// restore DE register
 	scf;								// set carry flag (error)
 	ret;								// return with error
@@ -2120,10 +2120,10 @@ L0AE1:
 	ld b, $0c;							// 12 file handles maximum
 	ld c, 0;							// counter for open files
 
-L0AEB:
+count_open_files_loop:
 	ld a, (de);							// get file handle number
 	and a;								// test if handle is in use
-	jr z, L0AFF;						// skip if handle not in use
+	jr z, advance_handle_pointer;		// skip if handle not in use
 	inc c;								// increment open file count
 	push de;							// save DE register
 	push bc;							// save BC register
@@ -2138,11 +2138,11 @@ L0AEB:
 	pop bc;								// restore BC register
 	pop de;								// restore DE register
 
-L0AFF:
+advance_handle_pointer:
 	inc de;								// advance to next handle entry
 	inc de;								// (each entry is 3 bytes)
 	inc de;								// complete handle entry skip
-	djnz L0AEB;							// loop through all handles
+	djnz count_open_files_loop;			// loop through all handles
 	ld a, c;							// get count of open files
 	ret;								// return with count
 
@@ -2156,7 +2156,7 @@ L0AFF:
 	ld e, (iy + _tv_flag);				// get TV flag
 	ld iyl, c;							// save drive number
 
-L0B19:
+init_file_handle:
 	call validate_filename_buffer;		// initialize file handle (04_files.asm)
 	ret c;								// return if initialization failed
 	push de;							// save DE register
@@ -2171,7 +2171,7 @@ L0B1E:
 
 L0B2A:
 	call configure_system_drive;		// validate drive (04_files.asm)
-	jr c, L0AE1;						// return with error if invalid
+	jr c, return_handle_error;			// return with error if invalid
 	push af;							// save drive number
 	ld a, (iy + _flags);				// get file flags
 	ld iyh, a;							// save in IYH
@@ -5789,7 +5789,7 @@ get_rom_byte:
 	org $1FD3
 	jp format_decimal_10k;				// V0861 - numeric display routine (05_api.asm)
 	org $1FD6
-	jp L089A;							// V089A - file size display routine (05_api.asm)
+	jp format_file_size;				// V089A - file size display routine (05_api.asm)
 	org $1FD9
 	jp L0DEB;							// V0DEB - screen channel open (08_memory.asm)
 	org $1FDC
