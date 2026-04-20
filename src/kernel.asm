@@ -1609,73 +1609,78 @@ L087D:
 L087F:
 	inc a;								// increment ASCII digit counter
 	or a;								// clear carry flag for subtraction
-	sbc hl, de;							// 
-	jr nc, L087F;						// 
-	add hl, de;							// 
-	cp $3a;								// 
-	jr nc, L0894;						// 
-	cp $30;								// 
-	jr nz, L0896;						// 
-	ld a, c;							// 
-	or c;								// 
-	call nz, restart_10;				// 
-	ret;								// 
+	sbc hl, de;							// subtract to count how many times DE fits in HL
+	jr nc, L087F;						// continue loop if result is positive
+	add hl, de;							// restore HL by adding back DE
+	cp $3a;								// check if digit is above '9' (hexadecimal)
+	jr nc, L0894;						// jump if hex digit (A-F)
+	cp $30;								// check if digit is '0'
+	jr nz, L0896;						// jump if not zero
+	ld a, c;							// load leading zero flag
+	or c;								// test if we should suppress leading zeros
+	call nz, restart_10;				// print character if not suppressing
+	ret;								// return from function
 
+; // convert hex digit A-F by adding 7 to make it ASCII
 L0894:
-	add a, 7;							// 
+	add a, 7;							// add 7 to convert hex digits A-F to ASCII
 
+; // print the digit and set leading zero flag
 L0896:
-	ld c, $30;							// 
+	ld c, $30;							// set flag to enable printing of subsequent zeros
 	rst $10;							// print a character
-	ret;								// 
+	ret;								// return from function
 
-;	// called from dirs.io
+; // format file size for display - called from dirs.io
 L089A:
-	ld a, e;							// 
-	or d;								// 
-	jr nz, L08AD;						// 
-	ld e, h;							// 
-	ld h, l;							// 
-	ld l, 0;							// 
-	sla h;								// 
-	rl e;								// 
-	rl d;								// 
-	call L08D3;							// 
-	jr L08CB;							// 
+	ld a, e;							// check high word of file size
+	or d;								// test if file size > 64KB
+	jr nz, L08AD;						// jump if large file (use MB/KB units)
+	ld e, h;							// shift 16-bit size into DE
+	ld h, l;							// move low byte to H
+	ld l, 0;							// clear L (multiply by 256)
+	sla h;								// shift left to multiply by 2
+	rl e;								// rotate carry into E
+	rl d;								// rotate carry into D
+	call L08D3;							// format as bytes
+	jr L08CB;							// jump to add 'B' suffix
 
+; // handle large files - convert to MB
 L08AD:
-	ld l, h;							// 
-	ld h, e;							// 
-	ld e, d;							// 
-	ld d, 0;							// 
-	srl e;								// 
-	rr h;								// 
-	rr l;								// 
-	srl e;								// 
-	rr h;								// 
-	rr l;								// 
-	srl e;								// 
-	rr h;								// 
-	rr l;								// 
-	xor a;								// 
-	call L08DA;							// 
-	ld a, 'M';							// 
+	ld l, h;							// shift 32-bit value right 8 bits
+	ld h, e;							// move bytes for division
+	ld e, d;							// continue shifting
+	ld d, 0;							// clear top byte
+	srl e;								// divide by 8 (shift right 3 times)
+	rr h;								// rotate right through H
+	rr l;								// rotate right through L
+	srl e;								// second division by 2
+	rr h;								// rotate right through H
+	rr l;								// rotate right through L
+	srl e;								// third division by 2 (total /8)
+	rr h;								// rotate right through H
+	rr l;								// rotate right through L
+	xor a;								// clear A for decimal places
+	call L08DA;							// format number with units
+	ld a, 'M';							// load 'M' for megabytes
 	rst $10;							// print a character
 
+; // add 'B' suffix for bytes if not already present
 L08CB:
-	ld a, b;							// 
-	cp 'B';								// $42
-	ret z;								// 
-	ld a, 'B';							// 
+	ld a, b;							// check unit suffix character
+	cp 'B';								// compare with 'B' ($42)
+	ret z;								// return if already 'B'
+	ld a, 'B';							// load 'B' character
 	rst $10;							// print a character
-	ret;								// 
+	ret;								// return from function
 
+; // format number and add unit suffix
 L08D3:
-	xor a;								// 
-	call L08DA;							// 
-	ld a, b;							// 
+	xor a;								// clear A (no decimal places)
+	call L08DA;							// format the number
+	ld a, b;							// load unit character
 	rst $10;							// print a character
-	ret;								// 
+	ret;								// return from function
 
 L08DA:
 	ld bc, $4200;						// 
@@ -1683,13 +1688,13 @@ L08DA:
 	ld a, d;							// 
 	or e;								// 
 	jr z, L08F0;						// 
-	call L0902;							// 
-	ld a, e;							// 
-	or e;								// 
-	ld b, $4b;							// 
-	jr z, L08F0;						// 
-	call L0902;							// 
-	ld b, $4d;							// 
+	call L0902;							// divide by 1024 for KB
+	ld a, e;							// check if result >= 1024
+	or e;								// test if we need MB
+	ld b, $4b;							// set unit to 'K' (kilobytes)
+	jr z, L08F0;						// jump if size < 1MB
+	call L0902;							// divide by 1024 again for MB
+	ld b, $4d;							// set unit to 'M' (megabytes)
 
 L08F0:
 	push bc;							// 
@@ -1697,129 +1702,134 @@ L08F0:
 	ld c, a;							// 
 	call L0861;							// 
 	pop bc;								// 
-	ld a, c;							// 
-	or c;								// 
-	ret z;								// 
-	ld a, '.';							// 
+	ld a, c;							// check decimal places count
+	or c;								// test if we have decimal places
+	ret z;								// return if no decimal places
+	ld a, '.';							// load decimal point character
 	rst $10;							// print a character
-	ld a, $30;							// 
-	add a, c;							// 
+	ld a, $30;							// load ASCII '0'
+	add a, c;							// add decimal digit
 	rst $10;							// print a character
-	ret;								// 
+	ret;								// return from function
 
+; // divide 24-bit number by 1024 (shift right 10 bits)
 L0902:
-	xor a;								// 
-	ld l, h;							// 
+	xor a;								// clear A (will hold remainder bits)
+	ld l, h;							// start shifting: L = H
 
+; // division loop - shift right 10 times total (divide by 1024)
 L0904:
-	ld h, e;							// 
-	ld e, d;							// 
-	ld d, a;							// 
-	srl e;								// 
-	rr h;								// 
-	rr l;								// 
-	jr nc, L0911;						// 
-	add a, 2;							// 
+	ld h, e;							// H = E (continue shifting)
+	ld e, d;							// E = D
+	ld d, a;							// D = A (remainder accumulator)
+	srl e;								// shift E right 1 bit
+	rr h;								// rotate H right (carry from E)
+	rr l;								// rotate L right (carry from H)
+	jr nc, L0911;						// jump if no remainder
+	add a, 2;							// add 2 to remainder (bit weight)
 
+; // continue division by 1024 - second shift
 L0911:
-	srl e;								// 
-	rr h;								// 
-	rr l;								// 
-	jr nc, L091B;						// 
-	add a, 5;							// 
+	srl e;								// shift E right another bit
+	rr h;								// rotate H right (carry from E)
+	rr l;								// rotate L right (carry from H)
+	jr nc, L091B;						// jump if no remainder
+	add a, 5;							// add 5 to remainder (bit weight)
 
+; // store decimal remainder and return
 L091B:
-	ld c, a;							// 
-	ret;								// 
+	ld c, a;							// store decimal remainder in C
+	ret;								// return with result in HLD, remainder in C
 
-	inc c;								// 
-	ld a, (bc);							// 
-	ld d, c;							// 
-	ld a, (bc);							// 
-	ld d, c;							// 
-	ld a, (bc);							// 
-	ld e, a;							// 
-	ld a, (bc);							// 
-	add a, e;							// 
-	dec bc;								// 
-	xor %00001001;						// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	exx;								// 
-	add hl, bc;							// 
-	call po, $0a;						// 
-	jr nz, L093D;						// 
-	jr nz, L0904;						// 
-	add hl, bc;							// 
-	pop de;								// 
-	add hl, bc;							// 
-	dec a;								// 
-	inc h;								// 
+	inc c;								// data table entry
+	ld a, (bc);							// load from table
+	ld d, c;							// data manipulation
+	ld a, (bc);							// load from table
+	ld d, c;							// data manipulation
+	ld a, (bc);							// load from table
+	ld e, a;							// store in E register
+	ld a, (bc);							// load from table
+	add a, e;							// add to accumulator
+	dec bc;								// decrement table pointer
+	xor %00001001;						// XOR with bit pattern (data processing)
+	ret z;								// return if zero result
+	add hl, bc;							// lookup table processing
+	ret z;								// return if zero
+	add hl, bc;							// lookup table processing
+	ret z;								// return if zero
+	add hl, bc;							// lookup table processing
+	exx;								// exchange register sets
+	add hl, bc;							// lookup table processing
+	call po, $0a;						// call if parity odd
+	jr nz, L093D;						// jump if not zero
+	jr nz, L0904;						// jump to division routine
+	add hl, bc;							// lookup table processing
+	pop de;								// restore DE from stack
+	add hl, bc;							// lookup table processing
+	dec a;								// decrement accumulator
+	inc h;								// increment H register
 
+; // data processing and lookup table section
 L093D:
-	and c;								// 
-	ld ($09c8), hl;						// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	ret z;								// 
-	add hl, bc;							// 
-	inc (hl);							// 
-	rlca;								// 
-	ret m;								// 
-	ld b, $a2;							// 
-	ld a, (bc);							// 
-	cp d;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	and d;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	ret nc;								// 
-	ld a, (bc);							// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
-	add hl, de;							// 
-	dec bc;								// 
+	and c;								// AND with C register
+	ld ($09c8), hl;						// store HL at memory address $09c8
+	ret z;								// return if zero
+	add hl, bc;							// table lookup operation
+	ret z;								// return if zero
+	add hl, bc;							// table lookup operation
+	ret z;								// return if zero
+	add hl, bc;							// table lookup operation
+	ret z;								// return if zero
+	add hl, bc;							// table lookup operation
+	ret z;								// return if zero
+	add hl, bc;							// table lookup operation
+	ret z;								// return if zero
+	add hl, bc;							// table lookup operation
+	inc (hl);							// increment memory location
+	rlca;								// rotate left circular
+	ret m;								// return if negative
+	ld b, $a2;							// load table index $a2
+	ld a, (bc);							// load from lookup table
+	cp d;								// compare with D
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry (>=)
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	and d;								// AND with D register
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	ret nc;								// return if no carry
+	ld a, (bc);							// load from lookup table
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
+	add hl, de;							// table offset calculation
+	dec bc;								// decrement table pointer
 	add hl, de;							// 
 	dec bc;								// 
 	add hl, de;							// 
