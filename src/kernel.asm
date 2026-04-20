@@ -41,19 +41,19 @@ start:
 ;	// main API entry point
 	org $0008
 restart_08:
-	jp L0985;							// jump to main syscall dispatcher
+	jp syscall_dispatcher;					// jump to main syscall dispatcher
 
 L000B:
 	ld hl, (ch_add);					// get pointer to next character in BASIC program
-	jr L0015;							// continue to character handler
+	jr char_handler_entry;				// continue to character handler
 
 	org $0010
 restart_10:
-	jp L0845;							// jump to character print routine (RST $10 vector)
+	jp char_print_routine;					// jump to character print routine (RST $10 vector)
 
 	org $0015
-L0015:
-	jp L0CD4;							// jump to character processing routine
+char_handler_entry:
+	jp char_processing_routine;				// jump to character processing routine
 
 	org $0018
 restart_18:
@@ -78,7 +78,7 @@ restart_28:
 ;	// auxiliary routines for internal UnoDOS business
 	org $0030
 restart_38:
-	jr L0091;							// jump to internal vector table dispatcher 
+	jr vector_dispatcher;					// jump to internal vector table dispatcher 
 
 cmd_folder:
 	defm "/dos/"; 						// avoids clash with keywords in tokenizers
@@ -155,7 +155,8 @@ L0068:
 	pop af;								// restore accumulator and flags
 	jp L1FFA;							// jump to exit handler
 
-L0091:
+; // internal vector table dispatcher (RST $30 handler)
+vector_dispatcher:
 	ld (mmc_2), hl;						// save HL register to MMC storage
 	pop hl;								// get return address from stack
 	inc hl;								// point to byte after RST instruction
@@ -166,7 +167,8 @@ L0091:
 	ld d, 0;							// clear upper byte (E contains vector index)
 	ld hl, vector_tbl;					// point to start of vector table
 
-L009F:
+; // vector table lookup and dispatch
+vector_lookup:
 	add hl, de;							// add vector index to table base address
 	add hl, de;							// add again (each vector entry is 2 bytes)
 	ld e, (hl);							// load low byte of vector address
@@ -1560,7 +1562,8 @@ pr_str:
 	jr pr_str;							// repeat
 
 ;	// jumped to from RST10 - print a character in 'a'
-L0845:
+; // character print routine (RST $10 handler)
+char_print_routine:
 	push hl;							// save registers
 	push de;							// save DE register
 	push bc;							// save BC register
@@ -1845,7 +1848,8 @@ L093D:
 ;;; 07_dispatcher.asm
 
 ;	// RST08_handler
-L0985:
+; // main syscall dispatcher (RST $08 entry point)
+syscall_dispatcher:
 	ex (sp), hl;						// swap HL with top of stack (return address)
 	ld ($3dfa), a;						// save parameter in A
 	ld a, (hl);							// retrieve syscall # from position
@@ -1853,7 +1857,8 @@ L0985:
 	inc hl;								// adjust return address
 	ex (sp), hl;						// and saves it to the stack
 
-L098C:
+; // register preservation and syscall setup
+syscall_reg_save:
 	push iy;							// save registers
 	push ix;							// save index register X
 	sub $80;							// now A holds the syscall number
@@ -2452,7 +2457,8 @@ L0CBD:
 ;	// immediate 16-bit value after the RST $18 instruction, thus resuming
 ;	// execution with divMMC paged in.
 
-L0CD4:
+; // character processing routine
+char_processing_routine:
 	ld (x_ptr), hl;						// save HL in x_ptr system variable
 	ld l, a;							// save A register in L
 	ld a, ($3df9);						// get current divMMC page
@@ -2492,7 +2498,7 @@ L0D08:
 	jr c, L0D18;						// if less, branch to error handling
 	push ix;							// save IX register
 	pop hl;								// copy IX to HL
-	call L098C;							// call system function dispatcher (06_disk.asm)
+	call syscall_reg_save;					// call system function dispatcher (06_disk.asm)
 	push hl;							// save result
 	pop ix;								// restore to IX
 	jp L1FFA;							// unmap and return
@@ -4912,7 +4918,7 @@ L1A43:
 	ld a, 7;							// load offset to data area (7)
 	add a, l;							// add to pointer
 	ld l, a;							// store updated pointer
-	ld bc, L0015;						// load data length (21 bytes)
+	ld bc, 21;							// load data length (21 bytes)
 	ldir;								// copy data from source to destination
 	ret;								// return from data copy
 
