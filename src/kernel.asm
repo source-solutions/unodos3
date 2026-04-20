@@ -4909,44 +4909,44 @@ L1A43:
 	ldir;								// copy data from source to destination
 	ret;								// return from data copy
 
-	dec d;								// 
-	dec h;								// 
-	ret;								// 
+	dec d;								// decrement D register (address high byte)
+	dec h;								// decrement H register (pointer high byte)
+	ret;								// return from function
 
-	ld a, (de);							// 
-	and e;								// 
-	ld a, (de);							// 
-	and c;								// 
-	ld a, (de);							// 
-	nop;								// 
-	nop;								// 
-	rrca;								// 
-	dec h;								// 
-	or a;								// 
-	ret;								// 
+	ld a, (de);							// load byte from DE address
+	and e;								// mask with E register
+	ld a, (de);							// load byte from DE address again
+	and c;								// mask with C register
+	ld a, (de);							// load byte from DE address third time
+	nop;								// no operation (padding)
+	nop;								// no operation (padding)
+	rrca;								// rotate A right circular
+	dec h;								// decrement H register
+	or a;								// set flags based on A register
+	ret;								// return from function
 
-	call L1B13;							// 
-	ld a, ixl;							// 
+	call L1B13;							// call block size calculation
+	ld a, ixl;							// load RAM page number
 	out (mmcram), a;					// Set divMMC RAM page...
-	ld a, ($3df8);						// 
-	ld ixh, a;							// 
-	xor a;								// 
+	ld a, ($3df8);						// load saved page number
+	ld ixh, a;							// store in IXH for later
+	xor a;								// clear accumulator
 	out (mmcram), a;					// divMMC RAM page 0
-	call L1AF4;							// 
-	ret c;								// 
-	ld e, (iy + _newppc);				// 
-	ld a, ixl;							// 
+	call L1AF4;							// call file seek function
+	ret c;								// return if seek failed
+	ld e, (iy + _newppc);				// load file handle
+	ld a, ixl;							// load RAM page number
 	out (mmcram), a;					// Set divMMC RAM page...
-	ld a, e;							// 
-	push de;							// 
-	rst $08;							// 
-	defb f_write;						// 
-	pop de;								// 
-	push af;							// 
-	ld a, e;							// 
-	rst $08;							// 
-	defb f_sync;						// 
-	pop af;								// 
+	ld a, e;							// load file handle
+	push de;							// save DE register pair
+	rst $08;							// call esxDOS API
+	defb f_write;						// write to file
+	pop de;								// restore DE register pair
+	push af;							// save write result flags
+	ld a, e;							// load file handle
+	rst $08;							// call esxDOS API
+	defb f_sync;						// synchronize file (flush buffers)
+	pop af;								// restore write result flags
 	jr L1AE6;							// jump to result handling
 	call L1B13;							// call block size calculation
 	ld a, ixl;							// load RAM page number
