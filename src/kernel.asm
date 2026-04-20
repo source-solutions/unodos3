@@ -4002,176 +4002,200 @@ L15C8:
 	ld a, (hl);							// load character from path
 	inc hl;								// advance path pointer
 	and a;								// check if end of component
-	jr z, L15E8;						// 
-	cp '/';								// $2f
-	jr z, L15E8;						// 
-	ld (de), a;							// 
-	inc de;								// 
-	jr L15C8;							// 
+	jr z, L15E8;						// jump if end of component (add separator)
+	cp '/';								// check for path separator ($2f)
+	jr z, L15E8;						// jump if path separator found
+	ld (de), a;							// store character in path buffer
+	inc de;								// increment buffer pointer
+	jr L15C8;							// continue copying characters
 
+; // handle parent directory (..) navigation
 L15D5:
-	inc hl;								// 
-	ld a, (hl);							// 
-	cp '.';								// $2e
-	jr nz, L15EC;						// 
-	dec de;								// 
-	dec de;								// 
+	inc hl;								// skip first dot
+	ld a, (hl);							// load next character
+	cp '.';								// check for second dot ($2e)
+	jr nz, L15EC;						// jump if not parent directory
+	dec de;								// backtrack in path buffer
+	dec de;								// backtrack further
 
+; // backtrack to find parent directory
 L15DD:
-	ld a, (de);							// 
-	cp '/';								// $2f
-	jr z, L15E5;						// 
-	dec de;								// 
-	jr L15DD;							// 
+	ld a, (de);							// load character from path buffer
+	cp '/';								// check for path separator ($2f)
+	jr z, L15E5;						// jump if separator found
+	dec de;								// continue backtracking
+	jr L15DD;							// loop until separator found
 
+; // position after parent directory separator
 L15E5:
-	inc de;								// 
-	jr L15EC;							// 
+	inc de;								// move past separator
+	jr L15EC;							// jump to path update
 
+; // add path separator after directory name
 L15E8:
-	ld a, $2f;							// 
-	ld (de), a;							// 
-	inc de;								// 
+	ld a, $2f;							// load path separator character
+	ld (de), a;							// store separator in buffer
+	inc de;								// increment buffer pointer
 
+; // update path buffer pointer and continue processing
 L15EC:
-	ld ($3dea), de;						// 
-	pop hl;								// 
-	ld a, e;							// 
-	cp $81;								// 
-	ld a, $15;							// 
-	ret c;								// 
-	call z, L1169;						// 
-	jr z, L15FF;						// 
+	ld ($3dea), de;						// store updated path buffer pointer
+	pop hl;								// restore entry pointer
+	ld a, e;							// check buffer position
+	cp $81;								// compare with buffer limit
+	ld a, $15;							// load error code 21 (path too long)
+	ret c;								// return if path buffer overflow
+	call z, L1169;						// call root directory setup if at root
+	jr z, L15FF;						// jump if root directory
 
+; // setup directory for subdirectory traversal
 L15FC:
-	call L163E;							// 
+	call L163E;							// call directory cluster setup function
 
+; // continue path processing or handle completion
 L15FF:
-	ld a, (hl);							// 
-	and a;								// 
-	jr z, L160D;						// 
-	cp '/';								// $2f
-	inc hl;								// 
-	jp z, L1578;						// 
+	ld a, (hl);							// load next path character
+	and a;								// check if end of path
+	jr z, L160D;						// jump if end of path reached
+	cp '/';								// check for path separator ($2f)
+	inc hl;								// advance path pointer
+	jp z, L1578;						// jump to continue processing if separator
 
+; // error - invalid path format
 L1609:
-	scf;								// 
-	ld a, $13;							// 
-	ret;								// 
+	scf;								// set carry flag (error condition)
+	ld a, $13;							// load error code 19 (invalid filename)
+	ret;								// return with error
 
+; // handle end of path - check operation type
 L160D:
-	ld a, (iy + 52);					// 
-	rla;								// 
-	ccf;								// 
-	ld a, $10;							// 
-	ret c;								// 
+	ld a, (iy + 52);					// load operation flags
+	rla;								// rotate left to check bit 7
+	ccf;								// complement carry flag
+	ld a, $10;							// load error code 16 (wrong operation)
+	ret c;								// return error if wrong operation type
 
+; // successful path resolution - call finalization
 L1615:
-	call L161A;							// 
-	or a;								// 
-	ret;								// 
+	call L161A;							// call path finalization function
+	or a;								// clear carry flag (success)
+	ret;								// return successfully
 
+; // path finalization function
 L161A:
-	bit 0, (iy + 52);					// 
-	ret z;								// 
-	ld hl, ($3dec);						// 
-	ld de, ($3dea);						// 
+	bit 0, (iy + 52);					// check if path building enabled
+	ret z;								// return if path building disabled
+	ld hl, ($3dec);						// load current path position
+	ld de, ($3dea);						// load path buffer pointer
 
+; // copy remaining path string
 L1626:
-	ld a, (hl);							// 
-	ld (de), a;							// 
-	inc hl;								// 
-	inc de;								// 
-	or a;								// 
-	ret z;								// 
-	jr L1626;							// 
+	ld a, (hl);							// load character from source
+	ld (de), a;							// store character in destination
+	inc hl;								// increment source pointer
+	inc de;								// increment destination pointer
+	or a;								// check if null terminator
+	ret z;								// return if end of string
+	jr L1626;							// continue copying
 
+; // handle file not found error with path completion
 L162E:
-	ex de, hl;							// 
-	ld a, (hl);							// 
-	and a;								// 
-	jr z, L1637;						// 
-	scf;								// 
-	ld a, $13;							// 
-	ret;								// 
+	ex de, hl;							// exchange DE and HL
+	ld a, (hl);							// load character from path
+	and a;								// check if end of path
+	jr z, L1637;						// jump if end reached
+	scf;								// set carry flag (error)
+	ld a, $13;							// load error code 19 (invalid filename)
+	ret;								// return with error
 
+; // finalize path and return file not found error
 L1637:
-	call L161A;							// 
-	scf;								// 
-	ld a, 5;							// 
-	ret;								// 
+	call L161A;							// call path finalization function
+	scf;								// set carry flag (error)
+	ld a, 5;							// load error code 5 (file not found)
+	ret;								// return with error
 
+; // setup directory cluster for operations
 L163E:
-	push hl;							// 
-	ld a, (ix + 29);					// 
-	and a;								// 
-	jr nz, L164A;						// 
-	call L1169;							// 
-	jr L1654;							// 
+	push hl;							// save HL register
+	ld a, (ix + 29);						// load cluster high byte from descriptor
+	and a;								// check if cluster is set
+	jr nz, L164A;						// jump if cluster exists
+	call L1169;							// call root directory setup
+	jr L1654;							// jump to completion
 
+; // load cluster from descriptor and setup directory
 L164A:
-	ld h, a;							// 
-	ld a, (ix + 28);					// 
-	add a, $14;							// 
-	ld l, a;							// 
-	call L165F;							// 
+	ld h, a;							// copy cluster high byte to H
+	ld a, (ix + 28);					// load cluster low byte from descriptor
+	add a, $14;							// add offset to directory entry
+	ld l, a;							// set cluster low byte in L
+	call L165F;							// call cluster setup function
 
+; // restore registers and check sector count
 L1654:
-	pop hl;								// 
+	pop hl;								// restore HL register
 
+; // check sector parameters and return
 L1655:
-	ld a, (iy + 28);					// 
-	cp 1;								// 
-	ret z;								// 
-	ld bc, 0;							// 
-	ret;								// 
+	ld a, (iy + 28);					// load sectors per cluster
+	cp 1;								// check if single sector cluster
+	ret z;								// return if single sector
+	ld bc, 0;							// clear BC register
+	ret;								// return with cleared registers
 
+; // process cluster chain and validate
 L165F:
-	call L166B;							// 
-	ld a, c;							// 
-	or b;								// 
-	or e;								// 
-	or d;								// 
-	call z, L1169;						// 
-	jr L1655;							// 
+	call L166B;							// call cluster data extraction function
+	ld a, c;							// load cluster low byte
+	or b;								// combine with high byte
+	or e;								// combine with extended data
+	or d;								// combine all cluster data
+	call z, L1169;						// call root directory if cluster is zero
+	jr L1655;							// jump to parameter check
 
+; // extract cluster data from directory entry
 L166B:
-	ld c, (hl);							// 
-	inc l;								// 
-	ld b, (hl);							// 
-	ld a, l;							// 
-	add a, 5;							// 
-	ld l, a;							// 
-	ld e, (hl);							// 
-	inc l;								// 
-	ld d, (hl);							// 
-	inc l;								// 
-	ret;								// 
+	ld c, (hl);							// load cluster low byte
+	inc l;								// increment to next byte
+	ld b, (hl);							// load cluster high byte
+	ld a, l;							// get current L value
+	add a, 5;							// skip 5 bytes to extended cluster
+	ld l, a;							// update L pointer
+	ld e, (hl);							// load extended cluster low byte
+	inc l;								// increment to next byte
+	ld d, (hl);							// load extended cluster high byte
+	inc l;								// increment pointer for return
+	ret;								// return with cluster data
 
-	ex de, hl;							// 
-	push iy;							// 
-	pop hl;								// 
-	ld l, $80;							// 
-	rst $30;							// 
-	inc b;								// 
-	or a;								// 
-	ret;								// 
+	; // buffer management function with system call
+	ex de, hl;							// exchange DE and HL
+	push iy;							// save IY register
+	pop hl;								// load IY value to HL
+	ld l, $80;							// set buffer offset
+	rst $30;							// call system function
+	inc b;								// increment B register
+	or a;								// clear carry flag
+	ret;								// return from function
 
+; // file I/O operation with buffer management
 L1681:
-	push hl;							// 
-	set 5, (ix + 1);					// 
-	call L18EE;							// 
-	res 5, (ix + 1);					// 
-	pop hl;								// 
-	ret;								// 
+	push hl;							// save HL register
+	set 5, (ix + 1);					// set buffer flag in descriptor
+	call L18EE;							// call buffer I/O function
+	res 5, (ix + 1);					// clear buffer flag
+	pop hl;								// restore HL register
+	ret;								// return from operation
 
+; // file close operation
 L168F:
-	call L1697;							// 
-	ld (ix + 0), 0;						// 
-	ret;								// 
+	call L1697;							// call file close function
+	ld (ix + 0), 0;						// clear file descriptor status
+	ret;								// return from close operation
 
+; // file flush and update operation
 L1697:
-	or a;								// 
+	or a;								// clear carry flag initially
 
 L1699 equ $1699
 
@@ -4213,102 +4237,110 @@ L16CB equ $16cb
 	ld e, h;							// 
 	ld de, $1b21;						// 
 	inc a;								// 
-	rst $30;							// 
-	nop;								// 
-	call L1A14;							// 
-	call L114F;							// 
-	call L17F4;							// 
-	ex de, hl;							// 
-	ret;								// 
+; // continue directory processing after error recovery
+	rst $30;							// call system function
+	nop;								// no operation
+	call L1A14;							// call file size get function
+	call L114F;							// call cluster set function
+	call L17F4;							// call directory position function
+	ex de, hl;							// exchange DE and HL
+	ret;								// return from function
 
+; // file delete operation entry point
 L16DE:
-	ld a, b;							// 
-	ld ($3c01), a;						// 
-	ld ($3c23), de;						// 
-	ld a, 1;							// 
-	call L1524;							// 
-	jr nc, L16FD;						// 
-	cp 5;								// 
-	scf;								// 
-	ret nz;								// 
-	ld a, ($3c01);						// 
-	and %00001100;						// 
-	scf;								// 
-	ld a, 5;							// 
-	ret z;								// 
-	jp L1712;							// 
+	ld a, b;							// load operation flags from B
+	ld ($3c01), a;						// store operation flags
+	ld ($3c23), de;						// store file parameters
+	ld a, 1;							// load file lookup mode
+	call L1524;							// call file lookup function
+	jr nc, L16FD;						// jump if file found
+	cp 5;								// check for file not found error
+	scf;								// set carry flag (error)
+	ret nz;								// return if other error
+	ld a, ($3c01);						// load operation flags
+	and %00001100;						// mask file operation bits
+	scf;								// set carry flag (error)
+	ld a, 5;							// load file not found error
+	ret z;								// return if no operation specified
+	jp L1712;							// jump to file creation
 
+; // handle existing file operations
 L16FD:
-	ld a, ($3c01);						// 
-	and %00001100;						// 
-	cp 4;								// 
-	jr nz, L170A;						// 
-	scf;								// 
-	ld a, $12;							// 
-	ret;								// 
+	ld a, ($3c01);						// load operation flags
+	and %00001100;						// mask file operation type bits
+	cp 4;								// check for delete operation
+	jr nz, L170A;						// jump if not delete
+	scf;								// set carry flag (error)
+	ld a, $12;							// load error code 18 (file exists)
+	ret;								// return with error
 
+; // determine file operation type
 L170A:
-	cp $0c;								// 
-	jp z, L1815;						// 
-	jp L184A;							// 
+	cp $0c;								// check for directory creation
+	jp z, L1815;						// jump to directory creation function
+	jp L184A;							// jump to file access function
 
+; // file creation operation
 L1712:
-	call L1334;							// 
-	ret c;								// 
-	call L17F4;							// 
-	ret c;								// 
-	ld a, (de);							// 
-	push af;							// 
-	call L17A0;							// 
-	pop de;								// 
-	ret c;								// 
-	ld a, d;							// 
-	cp $e5;								// RESTORE
-	jr z, L172A;						// 
-	call L177A;							// 
-	ret c;								// 
+	call L1334;							// call cluster validation function
+	ret c;								// return if validation failed
+	call L17F4;							// call directory position function
+	ret c;								// return if position failed
+	ld a, (de);							// load directory entry status
+	push af;							// save status
+	call L17A0;							// call directory entry creation
+	pop de;								// restore status to DE
+	ret c;								// return if creation failed
+	ld a, d;							// check entry status
+	cp $e5;								// check for deleted entry marker
+	jr z, L172A;						// jump to initialization if deleted
+	call L177A;							// call directory entry clear function
+	ret c;								// return if clear failed
 
+; // initialize file descriptor and setup file attributes
 L172A:
-	ld hl, $3c1b;						// 
-	rst $30;							// 
-	ld bc, $07cd;						// 
-	ld a, (de);							// 
-	call L17DB;							// 
-	call L19B9;							// 
-	ld a, ($3c01);						// 
-	push af;							// 
-	and %00000011;						// 
-	or %00000010;						// 
-	ld (ix + 1), a;						// 
-	pop af;								// 
-	or a;								// 
-	bit 6, a;							// 
-	jr z, L1767;						// 
-	call $34ca;							// 
-	call $3192;							// 
-	ret c;								// 
-	ld hl, $2d00;						// 
-	call $313c;							// 
-	ret c;								// 
-	set 3, (ix + 1);					// 
-	ld a, $80;							// 
-	ld (ix + 11), a;					// 
-	ld (ix + 15), a;					// 
-	call L1697;							// 
-	ret c;								// 
+	ld hl, $3c1b;						// load file buffer address
+	rst $30;							// call system function
+	ld bc, $07cd;						// load initialization parameters
+	ld a, (de);							// load entry data
+	call L17DB;							// call file position reset function
+	call L19B9;							// call file position store function
+	ld a, ($3c01);						// load operation flags
+	push af;							// save flags
+	and %00000011;						// mask access mode bits
+	or %00000010;						// set write access bit
+	ld (ix + 1), a;						// store access mode in descriptor
+	pop af;								// restore original flags
+	or a;								// check flags
+	bit 6, a;							// check directory creation bit
+	jr z, L1767;						// jump if not directory
+	call $34ca;							// call directory initialization function
+	call $3192;							// call directory setup function
+	ret c;								// return if setup failed
+	ld hl, $2d00;						// load directory buffer address
+	call $313c;							// call directory write function
+	ret c;								// return if write failed
+	set 3, (ix + 1);					// set directory flag in descriptor
+	ld a, $80;							// load directory buffer offset
+	ld (ix + 11), a;					// store in file descriptor
+	ld (ix + 15), a;					// store buffer position
+	call L1697;							// call file update function
+	ret c;								// return if update failed
 
+; // complete file creation and setup file buffer
 L1767:
-	call L1773;							// 
-	ld hl, $2c80;						// 
-	ld a, ($3df9);						// 
-	ld b, a;							// 
-	or b;								// 
-	ret;								// 
+	call L1773;							// call error number transfer function
+	ld hl, $2c80;						// load file buffer address
+	ld a, ($3df9);						// load file buffer size
+	ld b, a;							// copy size to B register
+	or b;								// check if size is valid
+	ret;								// return with status
 
+; // transfer system error number to file descriptor
 L1773:
-	ld a, (iy + _err_nr);				// 
-	ld (ix + 0), a;						// 
-	ret;								// 
+	ld a, (iy + _err_nr);				// load error number from system variables
+	ld (ix + 0), a;						// store error in file descriptor
+	ret;								// return from function
 
 L177A:
 	ld a, h;							// 
@@ -4335,37 +4367,38 @@ L1794:
 L17A0:
 	ld hl, $3c06;						// 
 	ld bc, $0b;							// 
-	ldir;								// 
-	xor a;								// 
-	ld (de), a;							// 
-	ex de, hl;							// 
-	inc hl;								// 
+	ldir;								// copy filename to directory entry
+	xor a;								// clear accumulator
+	ld (de), a;							// null-terminate filename
+	ex de, hl;							// exchange DE and HL
+	inc hl;								// move to attribute field
 
+; // initialize directory entry fields
 L17AC:
-	ld (hl), a;							// 
-	inc hl;								// 
-	ld (hl), a;							// 
-	inc hl;								// 
-	rst $08;							// 
-	defb m_getdate;						// 
-	rst $30;							// 
-	nop;								// 
-	xor a;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	rst $30;							// 
-	nop;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	ld (hl), a;							// 
-	inc l;								// 
-	ld b, a;							// 
+	ld (hl), a;							// clear attribute field
+	inc hl;								// move to next field
+	ld (hl), a;							// clear reserved field
+	inc hl;								// move to time field
+	rst $08;							// call system function
+	defb m_getdate;						// get current date/time
+	rst $30;							// call system function
+	nop;								// no operation
+	xor a;								// clear accumulator
+	ld (hl), a;							// clear file size byte 1
+	inc l;								// increment to next byte
+	ld (hl), a;							// clear file size byte 2
+	inc l;								// increment to next byte
+	ld (hl), a;							// clear file size byte 3
+	inc l;								// increment to next byte
+	ld (hl), a;							// clear file size byte 4
+	inc l;								// increment to cluster field
+	rst $30;							// call system function
+	nop;								// no operation
+	ld (hl), a;							// clear cluster low byte
+	inc l;								// increment to next byte
+	ld (hl), a;							// clear cluster high byte
+	inc l;								// increment pointer
+	ld b, a;							// clear B register
 	ld c, b;							// 
 	ld d, c;							// 
 	ld e, d;							// 
