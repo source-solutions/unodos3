@@ -5060,23 +5060,25 @@ gfx_loop:
 
 ;	org $1b6a
 attributes:
-	ld hl, 22862;						// 
-	ld de, 28;							// 
-	ld b, 4;							// 
+	ld hl, 22862;						// load ZX Spectrum attribute area start address ($5946)
+	ld de, 28;							// load row offset for attribute area (32-4 = 28)
+	ld b, 4;							// set outer loop counter (4 rows)
 
-;	org $1b72
+;		org $1b72
+; // outer loop - process 4 rows of attributes
 outer_loop:
-	ld a, 4;							// 
+	ld a, 4;							// set inner loop counter (4 columns)
 
-;	org $1b74
+;		org $1b74
+; // inner loop - process 4 attribute cells per row
 inner_loop:
 	ld (hl), %01000111;					// bright white
-	inc hl;								// 
-	dec a;								// 
+	inc hl;								// advance to next attribute cell
+	dec a;								// decrement column counter
 	jr nz, inner_loop;					// do four cells
-	add hl, de;							// 
+	add hl, de;							// move to start of next row (skip remaining cells)
 	djnz outer_loop;					// do four rows
-	ret;								// 
+	ret;								// return from attribute setting function
 
 ;	org $1b7e
 boot_icon:
