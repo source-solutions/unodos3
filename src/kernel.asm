@@ -1,5 +1,5 @@
 ;	// UnoDOS 3 - An operating system for the divMMC SD card interface.
-;	// Copyright (c) 2017-2020 Source Solutions, Inc.
+;	// Copyright (c) 2017-2026 Source Solutions, Inc.
 
 ;	// UnoDOS 3 is free software: you can redistribute it and/or modify
 ;	// it under the terms of the GNU General Public License as published by
@@ -29,54 +29,54 @@
 	include "io.inc"
 
 ;	// automatically mapped in by the hardware after M1 when PC=$0000
-	org $0000;							// 
+	org $0000;							// UnoDOS entry point at system reset
 start:
-	di;									// interrupts off
-	ld sp, $5e00;						// set stack poitner to $5e00
-	jp L0101;							// immediate jump
+	di;									// interrupts off for initialization
+	ld sp, $5e00;						// set stack pointer to $5e00 (below UDG area)
+	jp L0101;							// jump to main initialization routine
 
 ;	// automatically mapped in by the hardware after M1 when PC=0008h
 ;	// main API entry point
 	org $0008
 restart_08:
-	jp L0985;							// immediate jump
+	jp L0985;							// jump to main syscall dispatcher
 
 L000B:
-	ld hl, (ch_add);					//
-	jr L0015;							//
+	ld hl, (ch_add);					// get pointer to next character in BASIC program
+	jr L0015;							// continue to character handler
 
 	org $0010
 restart_10:
-	jp L0845;							//
+	jp L0845;							// jump to character print routine (RST $10 vector)
 
 	org $0015
 L0015:
-	jp L0CD4;							//
+	jp L0CD4;							// jump to character processing routine
 
 	org $0018
 restart_18:
-	jp $0cbd;							//
+	jp $0cbd;							// jump to ROM routine caller (RST $18 vector)
 
 	org $001f
 L001F:
 restart_20 equ L001F + 1
-	jr L004B;							//
-	ld e, l;							//
-	ld e, h;							//
-	ld (x_ptr), hl;						//
-	jr L004D;							//
+	jr L004B;							// jump to next character routine
+	ld e, l;							// save L register to E
+	ld e, h;							// save H register to E (overwrites previous)
+	ld (x_ptr), hl;						// save HL to ? marker pointer in BASIC
+	jr L004D;							// continue processing
 
 	org $0028
 restart_28:
-	push hl;							//
-	ld hl, (mmc_sp);					//
-	ex (sp), hl;						//
-	ret;								//
+	push hl;							// save HL on stack
+	ld hl, (mmc_sp);					// load MMC stack pointer
+	ex (sp), hl;						// exchange with saved HL on stack
+	ret;								// return to address from MMC stack
 
 ;	// auxiliary routines for internal UnoDOS business
 	org $0030
 restart_38:
-	jr L0091;							// 
+	jr L0091;							// jump to internal vector table dispatcher
 
 cmd_folder:
 	defm "/dos/"; 						// avoids clash with keywords in tokenizers
@@ -84,37 +84,37 @@ cmd_folder:
 ;	// automatically mapped in by the hardware after M1 when PC=$0038
 	org $0038
 maskint:
-	jr L001F;							//
-	ld hl, $0039;						//
-	jp L1FF4;							//
+	jr L001F;							// jump to restart_20 handler (maskable interrupt)
+	ld hl, $0039;						// load address after interrupt vector
+	jp L1FF4;							// jump to interrupt cleanup routine
 
 L0040:
 	defm "sys", 0;						// system file extension
-	defm "2022";						// year of release
+	defm "2026";						// year of release
 
 L0048:
-	ld a, (de);							//
+	ld a, (de);							// load byte pointed to by DE
 
 L0049:
-	ld bc, $fb00;						//
-	ret;								//
+	ld bc, $fb00;						// load test pattern for keyboard scanning
+	ret;								// return to caller
 
-L004B equ L0049 + 2;					//
+L004B equ L0049 + 2;					// points to RET instruction in L0049
 
 L004D:
-	jp L0C06;							//
+	jp L0C06;							// jump to character processing continuation
 
 L0050:
-	defb $0d, 0;						// carriage return, end marker
+	defb $0d, 0;						// carriage return followed by string terminator
 
 verbose:
-	ld hl, 20480;						// printing off by default
-	ld a, $fe;							// test for SHIFT
-	in a, (ula);						// read it
-	rra;								// test for character
-	ret c;								// back if no SHIFT
-	ld hl, $3c00;						// point to character set
-	ret;								// end of subroutine
+	ld hl, 20480;						// set HL to disable verbose printing (5000h)
+	ld a, $fe;							// keyboard row for CAPS SHIFT key
+	in a, (ula);						// read keyboard row via ULA port
+	rra;								// rotate right to test CAPS SHIFT (bit 0)
+	ret c;								// return if CAPS SHIFT not pressed
+	ld hl, $3c00;						// enable verbose mode (point to font/messages)
+	ret;								// return with verbose mode enabled
 
 ;	// automatically mapped in by the hardware after M1 when PC=$0066
 	org $0066
@@ -133,113 +133,112 @@ NMI:
 
 	org $0068
 L0068:
-	ld (mmc_2), hl;						//
-	ld hl, (mmc_3);						//
-	ld h, a;							//
-	ld a, 0;							//
-	out (mmcram), a;					// divMMC mem page 0, CONMEM off, MAPRAM off
-	ld a, l;							// mem page from L
-	ld (mmc_1), hl;						//
-	out (mmcram), a;					//
-	ld a, 0;							// could use XOR A if flags are not important
-	ld hl, (mmc_2);						//
-	out (mmcram), a;					// divMMC mem page 0, CONMEM off, MAPRAM off
-	ld a, ($2e7b);						//
-	jp L201E;							//
-	ei;									// interrupts on
-	push af;							//
-	ld a, (mmc_1);						//
-	out (mmcram), a;					// divMMC mem
-	pop af;								//
-	jp L1FFA;							//
+	ld (mmc_2), hl;						// save HL to MMC temporary storage
+	ld hl, (mmc_3);						// load previous memory page configuration
+	ld h, a;							// save A register in H
+	ld a, 0;							// select divMMC page 0
+	out (mmcram), a;					// switch to divMMC page 0, disable CONMEM/MAPRAM
+	ld a, l;							// get memory page number from L
+	ld (mmc_1), hl;						// save page configuration
+	out (mmcram), a;					// switch to specified divMMC page
+	ld a, 0;							// reset to page 0
+	ld hl, (mmc_2);						// restore saved HL
+	out (mmcram), a;					// switch back to divMMC page 0
+	ld a, ($2e7b);						// load status byte
+	jp L201E;							// jump to handler routine
+	ei;									// enable interrupts
+	push af;							// save accumulator and flags
+	ld a, (mmc_1);						// get current MMC page
+	out (mmcram), a;					// restore MMC memory configuration
+	pop af;								// restore accumulator and flags
+	jp L1FFA;							// jump to exit handler
 
 L0091:
-	ld (mmc_2), hl;						//
-	pop hl;								//
-	inc hl;								//
-	push hl;							//
-	dec hl;								//
-	push de;							//
-	ld e, (hl);							//
-	ld d, 0;							//
-	ld hl, vector_tbl;					//
+	ld (mmc_2), hl;						// save HL register to MMC storage
+	pop hl;								// get return address from stack
+	inc hl;								// point to byte after RST instruction
+	push hl;							// put incremented address back on stack
+	dec hl;								// point back to parameter byte
+	push de;							// save DE register
+	ld e, (hl);							// load vector number from parameter
+	ld d, 0;							// clear upper byte (E contains vector index)
+	ld hl, vector_tbl;					// point to start of vector table
 
 L009F:
-	add hl, de;							//
-	add hl, de;							//
-	ld e, (hl);							//
-	inc hl;								//
-	ld h, (hl);							//
-	ld l, e;							//
-	pop de;								//
-	push hl;							//
-	ld hl, (mmc_2);						//
-	ret;								//
+	add hl, de;							// add vector index to table base address
+	add hl, de;							// add again (each vector entry is 2 bytes)
+	ld e, (hl);							// load low byte of vector address
+	inc hl;								// point to high byte
+	ld h, (hl);							// load high byte of vector address
+	ld l, e;							// complete the vector address in HL
+	pop de;								// restore DE register
+	push hl;							// push vector address onto stack
+	ld hl, (mmc_2);						// restore original HL register
+	ret;								// return - will jump to vector address
 
 sys_folder:
 	defm "/dos";						// system folder
 	defb 0;								// end marker
 
 mute_psg:
-	ld hl, $fe07;						// H = AY-0, L = Volume register (7)
-	ld de, $bfff;						// D = data port, E = register port / mute
-	ld c, $fd;							// low byte of AY port
-	call mute_ay;						// mute AY-0
-	inc h;								// AY-1
+	ld hl, $fe07;						// H = AY chip 0 ($FE), L = Volume register 7
+	ld de, $bfff;						// D = data port ($BF), E = register port + mute ($FF)
+	ld c, $fd;							// C = low byte of AY I/O port ($xxFD)
+	call mute_ay;						// mute AY chip 0
+	inc h;								// H = $FF for AY chip 1
 
 mute_ay:
-	ld b, e;							// AY register port
-	out (c), h;							// select AY (255/254)
-	out (c), l;							// select register
-	ld b, d;							// AY data port
-	out (c), e;							// AY off;
-	ret;								// end of subroutine
+	ld b, e;							// B = AY register port ($FF)
+	out (c), h;							// select AY chip (254 for AY-0, 255 for AY-1)
+	out (c), l;							// select volume register (7)
+	ld b, d;							// B = AY data port ($BF)
+	out (c), e;							// write mute value (0) to volume register
+	ret;								// return to caller
 
 ;	// select BASIC ROM on 128K machines
 	org $00ef
 L00EF:
-	ld a, 4;							// ROMh to 1, normal memory mode
-	ld bc, $1ffd;						// +3 paging
-	out (c), a;							//
-	ld a, $10;							// ROMl to 1, normal video, RAM 0, unlocked
-	ld b, $7f;							// 128 paging
-	out (c), a;							//
-	ret;								// done
+	ld a, 4;							// set bit 2: ROM1 selected, normal memory mode
+	ld bc, $1ffd;						// +3 memory control port
+	out (c), a;							// configure +3 memory (%00000100)
+	ld a, $10;							// bit 4 set: ROM1, normal video, RAM bank 0
+	ld b, $7f;							// 128K memory control port
+	out (c), a;							// configure 128K memory (%00010000)
+	ret;								// BASIC ROM now selected
 
-	nop;								// 
-	nop;								// 
-	ld e, d;							// 
-	dec a;								// 
+	nop;								// padding instruction
+	nop;								// padding instruction  
+	ld e, d;							// instruction in padding space
+	dec a;								// instruction in padding space 
 
 ;	// Jumped to from RST0
 L0101:
-	xor a;								// LD A, 0
-	ld bc, $2a30;						//
-	out (mmcram), a;					// divMMC RAM page 0, CONMEM off, MAPRAM off
+	xor a;								// clear accumulator (A = 0)
+	ld bc, $2a30;						// load delay counter (10800 decimal)
+	out (mmcram), a;					// select divMMC page 0, disable CONMEM/MAPRAM
 
 L0107:
-	dec bc;								//
-	nop;								//
-	ld a, c;							//
-	or b;								//
-	jr nz, L0107;						// loop to settle the bus 
-	call L00EF;							// force BASIC ROM
-	ld a, $0e;							//
-	ld ($201f), a;						//
-	ld a, ($2d42);						//
-	cp $aa;								// SCREEN$, 170d
-	jr nz, L0124;						//
-	ld a, $7f;							// high byte of I/O address
-	in a, (ula);						// Read keyboard
-	rra;								//
-	jp c, L0251;						// if SPACE not pressed, jump to L0251
+	dec bc;								// decrement delay counter
+	nop;								// timing delay
+	ld a, c;							// get low byte of counter
+	or b;								// OR with high byte to test for zero
+	jr nz, L0107;						// loop until counter reaches zero (bus settle delay)
+	call L00EF;							// force BASIC ROM selection on 128K machines
+	ld a, $0e;							// load status byte
+	ld ($201f), a;						// store at divMMC status location
+	ld a, ($2d42);						// check initialization marker
+	cp $aa;								// compare with expected value (170 decimal)
+	jr nz, L0124;						// if not initialized, jump to full init
+	ld a, $7f;							// keyboard row for SPACE key
+	in a, (ula);						// read keyboard row
+	rra;								// rotate right to test SPACE in bit 0
+	jp c, L0251;						// if SPACE not pressed, exit to BASIC
 	;									// which sets HL to 1 then exits
 
-;	// start of init - make screen black
-;	org $012a
+;	// start of full initialization - clear screen to black
 L0124:
-	xor a;								// LD A, 0
-	out (ula), a;						// black border
+	xor a;								// clear accumulator (A = 0)
+	out (ula), a;						// set border to black
 	out ($ff), a;						// set low res screen
 	ld bc, $1eff;						// byte count
 	ld hl, $5eff;						// source
@@ -279,24 +278,24 @@ L013D:
 
 ;	org $0169
 L016B:
-	xor a;								// LD A, 0
-	out (mmcram), a;					// Switch to page 0, CONMEM off, MAPRAM off
-	ld a, $aa;							//
-	ld ($2d42), a;						//
-	ld a, l;							//
-	ld ($2e8c), a;						//
-	ld hl, chans;						//
-	ld (curchl), hl;					//
-	ld hl, print_out;					//
-	ld (chans), hl;						//
-	ld hl, $4000;						// screen address
-	ld (df_cc), hl;						//
-	ld hl, $1821;						// row 24, column 33 (gives PRINT AT 0,0;) 
-	ld (s_posn), hl;					//
+	xor a;								// clear accumulator (A = 0)
+	out (mmcram), a;					// select divMMC page 0, disable CONMEM/MAPRAM
+	ld a, $aa;							// initialization marker (170 decimal)
+	ld ($2d42), a;						// store initialization flag
+	ld a, l;							// get page count/configuration
+	ld ($2e8c), a;						// store memory configuration
+	ld hl, chans;						// point to channel data area
+	ld (curchl), hl;					// set current channel pointer
+	ld hl, print_out;					// point to print output routine
+	ld (chans), hl;						// set channel 0 (keyboard) output
+	ld hl, $4000;						// screen display file address
+	ld (df_cc), hl;						// set display file current position
+	ld hl, $1821;						// row 24, column 33 (bottom right for AT 0,0)
+	ld (s_posn), hl;					// set screen position for next print
 	ld a, 7;							// INK 7, PAPER 0, BRIGHT 0, FLASH 0
-	ld (attr_t), a;						//
-	call verbose;						// test for SPACE (verbose boot mode)
-	ld (chars), hl;						//
+	ld (attr_t), a;						// set temporary attributes
+	call verbose;						// check for CAPS SHIFT (verbose boot)
+	ld (chars), hl;						// set character set pointer
 	ld hl, copyright;					// address copyright message
 	call pr_str;						// print it
 	call L031C;							//
@@ -1523,32 +1522,32 @@ pr_str:
 
 ;	// jumped to from RST10 - print a character in 'a'
 L0845:
-	push hl;							// 
-	push de;							// 
-	push bc;							// 
-	push af;							// 
-	push iy;							// 
-	ld iy, err_nr;						// 
-	rst $18;							// 
-	defw print_a;						// 
-	pop iy;								// 
-	pop af;								// 
-	pop bc;								// 
-	pop de;								// 
-	pop hl;								// 
-	ret;								// 
+	push hl;							// save registers
+	push de;							// save DE register
+	push bc;							// save BC register
+	push af;							// save accumulator and flags
+	push iy;							// save index register Y
+	ld iy, err_nr;						// set IY to system variables
+	rst $18;							// call ROM routine
+	defw print_a;						// print character in A register
+	pop iy;								// restore registers
+	pop af;								// restore accumulator and flags
+	pop bc;								// restore BC register
+	pop de;								// restore DE register
+	pop hl;								// restore HL register
+	ret;								// return to caller
 
 L0859:
-	ld c, $30;							// 
-	ld h, 0;							// 
-	jr L0873;							// 
-	ld c, $20;							// 
+	ld c, $30;							// ASCII '0' (suppress leading zeros)
+	ld h, 0;							// clear high byte of number
+	jr L0873;							// jump to decimal conversion
+	ld c, $20;							// ASCII space (don't suppress)
 
 ;	// called from dirs.io
 L0861:
-	ld de, $2710;						// 
-	call L087D;							// 
-	ld de, $03e8;						// 
+	ld de, $2710;						// 10000 (ten thousands place)
+	call L087D;							// convert and print digit
+	ld de, $03e8;						// 1000 (thousands place)
 
 L086a:
 	call L087D;							// 
@@ -1790,7 +1789,7 @@ L093D:
 
 ;	// RST08_handler
 L0985:
-	ex (sp), hl;						//
+	ex (sp), hl;						// swap HL with top of stack (return address)
 	ld ($3dfa), a;						// save parameter in A
 	ld a, (hl);							// retrieve syscall # from position
 ;										// after RST instruction
@@ -1798,27 +1797,27 @@ L0985:
 	ex (sp), hl;						// and saves it to the stack
 
 L098C:
-	push iy;							// 
-	push ix;							// 
+	push iy;							// save registers
+	push ix;							// save index register X
 	sub $80;							// now A holds the syscall number
 ;										// subtract HOOK_BASE from it
 	ld iyl, a;							// so the syscall number begins now at 0
 ;										// save in IYl
-	ld ix, (mmc_3);						// 
-	xor a;								// 
+	ld ix, (mmc_3);						// get current divMMC page settings
+	xor a;								// select page 0
 	out (mmcram), a;					// divMMC RAM page 0 at $2000
-	ld a, ixl;							// 
+	ld a, ixl;							// get low byte of page settings
 	ld (call_num), a;					// Store syscall number
-	push ix;							// 
-	call L09B4;							// 
-	pop ix;								// 
-	ld iyl, a;							// 
-	ld a, ixl;							// 
+	push ix;							// save page settings
+	call L09B4;							// dispatch system call
+	pop ix;								// restore page settings
+	ld iyl, a;							// save result
+	ld a, ixl;							// get original page
 	out (mmcram), a;					// Set divMMC RAM page
-	ld a, iyl;							// 
-	pop ix;								// 
-	pop iy;								// 
-	ret;								// 
+	ld a, iyl;							// restore result
+	pop ix;								// restore registers
+	pop iy;								// restore index register Y
+	ret;								// return to caller
 
 L09B4:
 	ld a, iyl;							// 
@@ -5663,42 +5662,42 @@ L1FFB:
 ;	// UNODOS.SYS starts here
 	org $2000
 L2000:
-	call L23C9;							// 
-	ret c;								// 
-	jp $2800;							// 
-	call L23C9;							// 
-	ret c;								// 
-	jp $28be;							// 
+	call L23C9;							// initialize UnoDOS system
+	ret c;								// return if initialization failed
+	jp $2800;							// jump to BASIC extension entry point
+	call L23C9;							// re-initialize system
+	ret c;								// return if failed
+	jp $28be;							// jump to secondary entry point
 
 L200E:
-	jp $29af;							// 
+	jp $29af;							// jump to BASIC command processor
 
 L2011:
-	jp $294b;							// 
+	jp $294b;							// jump to BASIC statement handler
 
 L2014:
-	jp L233A;							// 
-	nop;								// 
+	jp L233A;							// jump to cleanup routine
+	nop;								// padding
 
 L2019 equ $2019
 
-	jr z, L2019;						// 
-	rst $38;							// 
+	jr z, L2019;						// jump if condition met
+	rst $38;							// call RST $38 (error handler)
 
 	org $201e
 L201E:
-	jr L202F;							// 
-	ld hl, 0;							// 
-	add hl, sp;							// 
-	ld h, a;							// 
-	ld a, l;							// 
-	cp $0A;								// 
-	jr z, L202B;						// 
-	pop bc;								// 
+	jr L202F;							// jump to main initialization
+	ld hl, 0;							// clear HL register
+	add hl, sp;							// get current stack pointer
+	ld h, a;							// save A in H
+	ld a, l;							// get low byte of stack
+	cp $0A;								// check stack boundary
+	jr z, L202B;						// jump if at boundary
+	pop bc;								// restore BC from stack
 
 L202B:
-	ld a, h;							// 
-	jp L1FFA;							// 
+	ld a, h;							// get saved A from H
+	jp L1FFA;							// jump to system exit handler
 
 L202F:
 	ld ($2E61), sp;						// 
