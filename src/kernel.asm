@@ -2885,7 +2885,7 @@ process_fat_parameters:
 	rl d;								// rotate D left through carry
 	rl c;								// rotate C left through carry
 	rl b;								// rotate B left through carry
-	call L1173;							// call subroutine at L1173
+	call call_cluster_processing;		// call subroutine at L1173
 
 ; // calculate cluster parameters and free space
 calculate_cluster_params:
@@ -3053,7 +3053,7 @@ default_label_string:
 	defb "NO NAME  ";					// if disk has no label
 ; // initialize volume path string
 init_volume_path:
-	call L1169;							// call subroutine at L1169
+	call process_cluster_pointer;		// call subroutine at process_cluster_pointer
 	call store_fs_parameters;			// call subroutine at L107B
 	push iy;							// push IY register onto stack
 	pop hl;								// pop into HL (copy IY to HL)
@@ -3079,7 +3079,7 @@ store_fs_parameters:
 ; // check if all registers zero
 check_all_zero:
 	or e;								// OR with E register (check if all zero)
-	call z, L1169;						// call L1169 if all registers are zero
+	call z, process_cluster_pointer;	// call process_cluster_pointer if all registers are zero
 
 ; // store parameter values
 store_param_values:
@@ -3120,19 +3120,16 @@ write_current_drive:
 
 ; // write cluster data to disk
 write_cluster_data:
-L10B0:
-	call L117F;							// load cluster start address
+	call calculate_cluster_address;		// load cluster start address
 	jr write_current_drive;				// jump to disk write routine
 
 ; // read cluster data from disk
 read_cluster_data:
-L10B5:
-	call L117F;							// load cluster start address
+	call calculate_cluster_address;		// load cluster start address
 	jr read_disk_sector;				// jump to disk read routine
 
 ; // check drive and cluster cache
 check_drive_cluster_cache:
-L10BA:
 	ld a, ($3c25);						// get current drive number
 	cp (iy + _flags);					// compare with file system drive
 	jr nz, validate_cluster_get_buffer;	// jump if different drive
@@ -3141,7 +3138,6 @@ L10BA:
 
 ; // validate cluster and get buffer
 validate_cluster_get_buffer:
-L10C8:
 	ld hl, $2800;						// load default buffer address
 	ccf;								// complement carry flag
 	ret z;								// return if zero flag set
@@ -3150,7 +3146,7 @@ L10C8:
 	push de;							// save DE register
 	push bc;							// save BC register
 	push hl;							// save HL register
-	call L1173;							// calculate sector address
+	call call_cluster_processing;		// calculate sector address
 	push hl;							// save calculated address
 	call read_disk_sector;				// read sector from disk
 	pop hl;								// restore calculated address
@@ -3168,7 +3164,6 @@ L10C8:
 
 ; // flush dirty buffer to disk
 flush_dirty_buffer:
-L10F3:
 	ld a, ($3c2b);						// get dirty buffer flag
 	or a;								// test if buffer needs flushing
 	ret z;								// return if buffer clean
@@ -3177,7 +3172,7 @@ L10F3:
 	push hl;							// save HL register
 	ld de, ($3c11);						// get sector address low word
 	ld bc, ($3c13);						// get sector address high word
-	call L1111;							// flush buffer to disk
+	call flush_buffer_to_disk;			// flush buffer to disk
 	pop hl;								// restore HL register
 	pop de;								// restore DE register
 	pop bc;								// restore BC register
@@ -3185,70 +3180,74 @@ L10F3:
 
 ; // mark buffer as dirty
 mark_buffer_dirty:
-L110A:
 	ld a, $ff;							// set dirty flag value
 	ld ($3c2b), a;						// mark buffer as dirty
 	or a;								// set flags for return
 	ret;								// return with non-zero
 
-L1111:
+; // flush buffer to disk with error handling
+flush_buffer_to_disk:
 	xor a;								// clear accumulator
 	ld ($3c2b), a;						// clear dirty buffer flag
 	ld hl, $2800;						// point to disk buffer
 	push de;							// save sector address low word
 	push bc;							// save sector address high word  
 	push hl;							// save buffer address
-	call L1173;							// calculate final sector address
+	call call_cluster_processing;		// calculate final sector address
 	push hl;							// save calculated address
 	call write_current_drive;			// write buffer to disk
 	pop hl;								// restore calculated address
-	jr c, L1129;						// jump if write error
+	jr c, handle_write_errors;			// jump if write error
 	call write_cluster_data;			// perform additional write operation
 	or a;								// check operation result
 
-L1129:
+; // handle buffer write errors
+handle_write_errors:
 	call c, write_cluster_data;			// call cleanup if error occurred
-	jr c, L1131;						// jump to exit if still error
+	jr c, cleanup_buffer_ops;			// jump to exit if still error
 	call L11DD;							// call buffer flush function
 
-L1131:
+; // cleanup buffer operations
+cleanup_buffer_ops:
 	pop hl;								// restore HL register
 	pop bc;								// restore BC register
 	pop de;								// restore DE register
 	ret;								// return with final status
 
-L1135:
+; // set file current sector address in descriptor
+set_file_sector_address:
 	ld (ix + 20), e;					// store sector address low byte
 	ld (ix + 21), d;					// store sector address byte 1
 	ld (ix + 22), c;					// store sector address byte 2  
 	ld (ix + 23), b;					// store sector address high byte
 	ret;								// return after storing addressreturn after storing address
 
-; Function: Get file current sector address from descriptor
-L1142:
+; // get file current sector address from descriptor
+get_file_sector_address:
 	ld e, (ix + 20);					// load sector address low byte
 	ld d, (ix + 21);					// load sector address byte 2
 	ld c, (ix + 22);					// load sector address byte 3
 	ld b, (ix + 23);					// load sector address high byte
 	ret;								// return DEBC = current sector address
 
-; Function: Set file next cluster in descriptor
-L114F:
+; // set file next cluster in descriptor
+set_file_next_cluster:
 	ld (ix + 24), e;					// store next cluster low byte
 	ld (ix + 25), d;					// store next cluster byte 2
 	ld (ix + 26), c;					// store next cluster byte 3
 	ld (ix + 27), b;					// store next cluster high byte
 	ret;								// return after storing DEBC cluster
 
-; Function: Get file next cluster from descriptor
-L115C:
+; // get file next cluster from descriptor
+get_file_next_cluster:
 	ld e, (ix + 24);					// load next cluster low byte
 	ld d, (ix + 25);					// load next cluster byte 2
 	ld c, (ix + 26);					// load next cluster byte 3
 	ld b, (ix + 27);					// load next cluster high byte
 	ret;								// return DEBC = next cluster address
 
-L1169:
+; // process cluster pointer and call 32-bit add
+process_cluster_pointer:
 	push hl;							// save HL register
 	push iy;							// save IY register
 	pop hl;								// load IY into HL
@@ -3256,7 +3255,8 @@ L1169:
 	rst $30;							// call ROM routine
 	ld bc, $c9e1;						// load return instruction and pop hl
 
-L1173:
+; // call cluster processing with arithmetic
+call_cluster_processing:
 	push hl;							// save HL register
 	ld l, (iy + 29);					// load cluster pointer low byte
 	ld h, (iy + 30);					// load cluster pointer high byte
@@ -3264,11 +3264,12 @@ L1173:
 	pop hl;								// restore HL register
 	ret;								// return from function
 
-L117F:
+; // calculate cluster address with offset
+calculate_cluster_address:
 	push hl;							// save HL register
 	push bc;							// save BC register
 	push de;							// save DE register
-	call L118F;							// get cluster start address in BCDE
+	call get_cluster_start_address;		// get cluster start address in BCDE
 	pop hl;								// restore DE to HL
 	add hl, de;							// add low 16-bits of cluster address
 	ex de, hl;							// result low 16-bits to DE
@@ -3279,15 +3280,16 @@ L117F:
 	pop hl;								// restore HL register
 	ret;								// return with 32-bit address in BCDE
 
-L118F:
+; // get cluster start address from volume descriptor
+get_cluster_start_address:
 	ld e, (iy + 31);					// load cluster start address low byte
 	ld d, (iy + 32);					// load cluster start address byte 1
 	ld c, (iy + 33);					// load cluster start address byte 2
 	ld b, (iy + 34);					// load cluster start address high byte
 	ret;								// return DEBC = cluster start addressreturn DEBC = cluster start addressreturn DEBC = cluster start address
 
-; Function: Get filesystem parameters from volume descriptor
-L119C:
+; // get filesystem parameters from volume descriptor
+get_filesystem_parameters:
 	ld b, (iy + 49);					// load filesystem parameter byte 3
 	ld c, (iy + 48);					// load filesystem parameter byte 2
 	ld d, (iy + 47);					// load filesystem parameter byte 1
@@ -3344,12 +3346,12 @@ L11DD:
 	jp write_disk_sector;				// jump to sector read routine
 
 L11FB:
-	call L115C;							// call sector loading function
+	call get_file_next_cluster;			// call sector loading function
 	call read_disk_sector;				// call directory processing
 	ret;								// return from function
 
 L1202:
-	call L115C;							// call sector loading function
+	call get_file_next_cluster;							// call sector loading function
 	ld a, ($3c26);						// load system flags
 	cp (iy + _flags);					// compare with file flags
 	jr nz, L1213;						// jump if flags differ
@@ -3379,7 +3381,7 @@ L122C:
 
 ; Function: Process file flags and load sector
 L1235:
-	call L115C;							// call sector loading function
+	call get_file_next_cluster;							// call sector loading function
 	ld a, (iy + _flags);				// load file flags
 	exx;								// switch to alternate register set
 	push bc;							// save BC register
@@ -3401,9 +3403,9 @@ L1235:
 L1250:
 	dec (ix + 19);						// decrement sector count
 	jr z, L125E;						// jump if all sectors processed
-	call L115C;							// call sector loading function
+	call get_file_next_cluster;							// call sector loading function
 	call $081c;							// call disk function
-	jp L114F;							// jump back to processing loop
+	jp set_file_next_cluster;							// jump back to processing loop
 
 ; Function: Complete sector processing
 L125E:
@@ -3457,17 +3459,17 @@ L128E:
 	ret;								// return with shift count
 
 L12A6:
-	call L1135;							// call sector/cluster address setup
+	call set_file_sector_address;							// call sector/cluster address setup
 
 L12A9:
 	call L1265;							// call file position check
 	ld (ix + 19), a;					// store sector count in file control block
-	jp L114F;							// jump to main processing loop
+	jp set_file_next_cluster;							// jump to main processing loop
 
 L12B2:
-	call L1142;							// call cluster calculation function
+	call get_file_sector_address;							// call cluster calculation function
 	call L12C7;							// call sector mapping function
-	jp nc, L1135;						// jump to setup if no carry
+	jp nc, set_file_sector_address;						// jump to setup if no carry
 	cp $80;								// check for empty block marker
 	scf;								// set carry flag (error condition)
 	ret nz;								// return with error if not empty block
@@ -3574,7 +3576,7 @@ L1334:
 
 ; Function: Disk write operation with RAM page management
 L1342:
-	call L115C;							// call sector loading function
+	call get_file_next_cluster;							// call sector loading function
 	ld a, (iy + _flags);				// load file flags
 	exx;								// switch to alternate register set
 	push bc;							// save BC register
@@ -3776,7 +3778,7 @@ L142C:
 	ld b, a;							// save operation code
 	push bc;							// save BC register
 	push hl;							// save HL register
-	call L1142;							// get file current sector address
+	call get_file_sector_address;							// get file current sector address
 	ld hl, $3c22;						// load buffer address
 	call compare_32bit;					// call comparison function
 	pop hl;								// restore HL register
@@ -3795,7 +3797,7 @@ L1442:
 	ld b, a;							// save operation type
 	push bc;							// save BC register
 	push hl;							// save HL register
-	call L1142;							// get file current sector address
+	call get_file_sector_address;							// get file current sector address
 	push iy;							// save IY register
 	pop hl;								// transfer IY to HL
 	ld l, $29;							// set offset for file attribute
@@ -3822,7 +3824,7 @@ L1461:
 	ld de, $2f00;						// load buffer address
 	push de;							// save buffer address
 	exx;								// switch to alternate registers
-	call L1169;							// call system function
+	call process_cluster_pointer;		// call system function
 	exx;								// switch back to main registers
 	call $336d;							// call ROM routine
 	pop hl;								// restore buffer address to HL
@@ -3832,7 +3834,7 @@ L1461:
 ; Function: Process filesystem operation with parameter handling
 L1470:
 	push af;							// save accumulator
-	call L119C;							// get filesystem parameters
+	call get_filesystem_parameters;							// get filesystem parameters
 	call L19ED;							// call processing function
 	call L12A6;							// call sector/cluster address setup
 	pop af;								// restore accumulator
@@ -3900,9 +3902,9 @@ L14C8:
 	ld (ix + 30), a;					// store as deleted entry number
 	ld a, (ix + 19);					// load current sector high
 	ld (ix + 31), a;					// store as deleted entry sector
-	call L115C;							// call file descriptor function
+	call get_file_next_cluster;							// call file descriptor function
 	call L19D3;							// call position storage function
-	call L1142;							// call sector calculation function
+	call get_file_sector_address;							// call sector calculation function
 	call store_file_position;			// call position update function
 	ret;								// return from function
 
@@ -3933,9 +3935,9 @@ L1505:
 	ld a, (ix + 31);					// load saved deleted entry sector
 	ld (ix + 19), a;					// restore sector number
 	call L19E0;							// call position restore function
-	call L114F;							// call sector setup function
+	call set_file_next_cluster;							// call sector setup function
 	call load_file_position;			// call position load function
-	call L1135;							// call position store function
+	call set_file_sector_address;							// call position store function
 	ld a, 5;							// load error code 5 (file not found)
 	scf;								// set carry flag (error)
 	ret;								// return with error
@@ -3996,8 +3998,8 @@ L156D:
 ; // setup path processing
 L156E:
 	ld ($3dea), de;						// store current buffer pointer
-	call z, L1169;						// call root directory setup if needed
-	call nz, L119C;						// call current directory setup if not root
+	call z, process_cluster_pointer;						// call root directory setup if needed
+	call nz, get_filesystem_parameters;						// call current directory setup if not root
 
 ; // main path component processing loop
 L1578:
@@ -4100,7 +4102,7 @@ L15EC:
 	cp $81;								// compare with buffer limit
 	ld a, $15;							// load error code 21 (path too long)
 	ret c;								// return if path buffer overflow
-	call z, L1169;						// call root directory setup if at root
+	call z, process_cluster_pointer;						// call root directory setup if at root
 	jr z, L15FF;						// jump if root directory
 
 ; // setup directory for subdirectory traversal
@@ -4176,7 +4178,7 @@ L163E:
 	ld a, (ix + 29);						// load cluster high byte from descriptor
 	and a;								// check if cluster is set
 	jr nz, L164A;						// jump if cluster exists
-	call L1169;							// call root directory setup
+	call process_cluster_pointer;		// call root directory setup
 	jr L1654;							// jump to completion
 
 ; // load cluster from descriptor and setup directory
@@ -4206,7 +4208,7 @@ L165F:
 	or b;								// combine with high byte
 	or e;								// combine with extended data
 	or d;								// combine all cluster data
-	call z, L1169;						// call root directory if cluster is zero
+	call z, process_cluster_pointer;						// call root directory if cluster is zero
 	jr L1655;							// jump to parameter check
 
 ; // extract cluster data from directory entry
@@ -4298,7 +4300,7 @@ L16CB equ $16cb
 	rst $30;							// call system function
 	nop;								// no operation
 	call L1A14;							// call file size get function
-	call L114F;							// call cluster set function
+	call set_file_next_cluster;							// call cluster set function
 	call L17F4;							// call directory position function
 	ex de, hl;							// exchange DE and HL
 	ret;								// return from function
@@ -4469,7 +4471,7 @@ init_dir_entry:
 	pop hl;								// restore directory entry pointer
 	ret c;								// return if write failed
 	push hl;							// save entry pointer again
-	call L115C;							// call file descriptor function
+	call get_file_next_cluster;							// call file descriptor function
 	ld hl, $3c1b;						// load file buffer address
 	rst $30;							// call ROM calculator routine
 	nop;								// padding instruction
@@ -4483,7 +4485,7 @@ reset_file_position:
 	ld c, b;							// clear C register
 	ld d, c;							// clear D register
 	ld e, d;							// clear E register (position = 0)
-	call L1135;							// call file position validation
+	call set_file_sector_address;							// call file position validation
 	call L19D3;							// call file size store function
 	ret;								// return from position reset
 
@@ -4553,7 +4555,7 @@ L184A:
 	push af;							// save access flags
 	and %00000011;						// mask to get access mode (read/write)
 	ld (ix + 1), a;						// store access mode in file descriptor
-	call L115C;							// call file descriptor setup
+	call get_file_next_cluster;							// call file descriptor setup
 	call L1A07;							// call file validation function
 	call L163E;							// call directory setup
 	call L18D0;							// call file position initialization
@@ -6995,14 +6997,14 @@ L3000:
 	push de;							// save DE register
 	ld de, ($3c11);						// load memory base address
 	ld bc, ($3c13);						// load memory size
-	call L110A;							// call memory initialization
+	call mark_buffer_dirty;				// call memory initialization
 	pop hl;								// restore HL register
 	call L1380;							// call address conversion
 	push bc;							// save BC register
 	push de;							// save DE register
 	ld bc, ($3c17);						// load saved size value
 	ld de, ($3c15);						// load saved address value
-	call L10BA;							// call memory operation
+	call check_drive_cluster_cache;		// call memory operation
 	ld de, ($3c19);						// load memory pointer
 	ld a, d;							// load high byte
 	and 1;								// mask to lowest bit
@@ -7018,7 +7020,7 @@ L3000:
 	call mark_buffer_dirty;				// call memory reinitialization
 	pop de;								// restore DE register
 	pop bc;								// restore BC register
-	jp L1135;							// jump to file descriptor function
+	jp set_file_sector_address;							// jump to file descriptor function
 
 ; Function: Check system flags and process
 L305E:
@@ -7088,12 +7090,12 @@ L3098:
 	pop bc;								// restore BC register
 	jr nz, L30CD;						// jump if comparison failed
 	set 2, (iy + _oldppc);				// set system processing flag
-	call L10BA;							// call memory allocation function
+	call check_drive_cluster_cache;		// call memory allocation function
 	jr nc, L3064;						// jump if allocation successful
 	ret;								// return to caller
 
 L30CD:
-	call L10BA;							// call memory allocation function
+	call check_drive_cluster_cache;		// call memory allocation function
 	jr nc, L3098;						// continue loop if allocation successful
 	ret;								// return with error
 
@@ -7170,7 +7172,7 @@ L3122:
 	push de;							// save DE register
 	ld de, ($3c11);						// load memory base address
 	ld bc, ($3c13);						// load memory size
-	call L110A;							// call memory initialization function
+	call mark_buffer_dirty;				// call memory initialization function
 	push af;							// save accumulator and flags
 	scf;								// set carry flag
 	call L1321;							// call memory setup function
@@ -7180,7 +7182,7 @@ L3122:
 	ret;								// return to caller
 
 L313C:
-	call L115C;							// call file descriptor function
+	call get_file_next_cluster;							// call file descriptor function
 	jp write_disk_sector;				// jump to file operations handler
 	bit 1, (ix + $01);					// check file operation flag bit 1
 	ld a, 8;							// load error code 8 (file not open)
@@ -7221,7 +7223,7 @@ L315C:
 	pop af;								// restore accumulator and flags
 	ret nc;								// return if no carry (success)
 	push af;							// save accumulator and flags
-	call L10F3;							// call cleanup function
+	call flush_dirty_buffer;			// call cleanup function
 	pop af;								// restore accumulator and flags
 	ret;								// return to caller
 
@@ -7238,7 +7240,7 @@ L3192:
 	push hl;							// save HL register
 	call L135D;							// call file descriptor validation function
 	pop hl;								// restore HL register
-	call nc, L10F3;						// call cleanup if no carry (success)
+	call nc, flush_dirty_buffer;		// call cleanup if no carry (success)
 	ret c;								// return if carry set (error)
 	push bc;							// save BC register
 	call L1321;							// call memory setup function
@@ -7304,7 +7306,7 @@ L31D1:
 	ld hl, $3c1f;						// load sector buffer address
 	rst $30;							// call ROM calculator routine
 	nop;								// padding/alignment
-	call L115C;							// call file descriptor function
+	call get_file_next_cluster;							// call file descriptor function
 	call L1A07;							// call file processing function
 	ld a, (ix + $06);					// load drive number from file descriptor
 	ld ($3c23), a;						// save drive number to temporary storage
@@ -7379,7 +7381,7 @@ L329C:
 ; // file operation error handler
 L329F:
 	push af;							// save accumulator and flags
-	call L10F3;							// call cleanup function
+	call flush_dirty_buffer;			// call cleanup function
 	pop af;								// restore accumulator and flags
 
 ; // file operation completion handler
@@ -7403,7 +7405,7 @@ L32B8:
 
 L32BC:
 	push bc;							// save BC register (attribute flags)
-	call L115C;							// call file descriptor function
+	call get_file_next_cluster;							// call file descriptor function
 	call L1A07;							// call file processing function
 	call L163E;							// call directory sector read function
 	ld l, (ix + $1C);					// load low byte of directory entry pointer
@@ -7427,7 +7429,7 @@ L32BC:
 	ld (hl), a;							// store modified attributes
 	call L17E7;							// call directory sector write function
 	ret c;								// return if error writing directory
-	jp L10F3;							// jump to file descriptor cleanup
+	jp flush_dirty_buffer;				// jump to file descriptor cleanup
 
 ; // validate filename against special characters
 L32E7:
@@ -7624,7 +7626,7 @@ L33D2:
 	ld a, $80;							// load file operation mode
 	call L1524;							// call file lookup function
 	ret c;								// return if lookup failed
-	call L115C;							// call file preparation function
+	call get_file_next_cluster;			// call file preparation function
 	call L1A07;							// call file allocation function
 	call L163E;							// call access setup function
 	call L19ED;							// call buffer initialization
@@ -7856,7 +7858,7 @@ L352D:
 	exx;								// switch to alternate register set
 	ld bc, 0;							// clear BC register pair
 	ld de, 2;							// load minimum allocation size
-	call L10BA;							// call memory allocation function
+	call check_drive_cluster_cache;		// call memory allocation function
 	ret c;								// return if allocation failed
 
 L353C:
@@ -7946,7 +7948,7 @@ L359F:
 	call L1524;							// call file lookup function
 	ret c;								// return if lookup failed
 	call L1773;							// call file validation function
-	call L115C;							// call file descriptor setup
+	call get_file_next_cluster;							// call file descriptor setup
 	call L1A07;							// call file allocation function
 	call L163E;							// call directory access setup
 	ld hl, $1a65;						// load completion handler address
@@ -7972,7 +7974,7 @@ L359F:
 	pop de;								// restore DE register
 	pop bc;								// restore BC register
 	call nc, L3108;						// call cluster deallocation if write succeeded
-	call nc, L10F3;						// call file descriptor cleanup if successful
+	call nc, flush_dirty_buffer;		// call file descriptor cleanup if successful
 
 ; // file deletion error handler
 L35DE:
@@ -8046,7 +8048,7 @@ L3640:
 	call L1524;							// call file lookup function
 	ret c;								// return if lookup failed
 	call L1773;							// call file validation
-	call L115C;							// call file descriptor setup
+	call get_file_next_cluster;							// call file descriptor setup
 	call L1A07;							// call file allocation
 	ld l, (ix + $1C);					// load directory entry pointer low
 	ld h, (ix + $1D);					// load directory entry pointer high
@@ -8080,11 +8082,11 @@ L366D:
 	ret z;								// return if file not open for writing
 	call load_file_position;			// call file position function
 	call L3183;							// call buffer synchronization
-	call L1142;							// call write operation handler
+	call get_file_sector_address;							// call write operation handler
 
 L367F:
 	call L3108;							// system processing call
-	call nc, L10F3;						// call if no carry
+	call nc, flush_dirty_buffer;		// call if no carry
 	ld hl, $1a7c;						// set system address
 	ld ($3dee), hl;						// store system address
 	call L1A21;							// call processing routine
@@ -8242,7 +8244,7 @@ L3759:
 	jr L3743;							// loop back for retry
 
 L375E:
-	call L115C;							// call coordinate routine
+	call get_file_next_cluster;			// call coordinate routine
 	ld a, (iy + _coord_y);				// get Y coordinate
 	sub (ix + $13);						// subtract offset value
 	ld h, 0;							// clear H register
@@ -8255,7 +8257,7 @@ L375E:
 	ld h, 0;							// clear H register
 	ld l, a;							// load masked value into L
 	call add_32bit;						// call coordinate routine
-	call L114F;							// call display routine
+	call set_file_next_cluster;							// call display routine
 	pop de;								// restore DE registers
 	pop bc;								// restore BC registers
 	ld l, e;							// copy E to L
