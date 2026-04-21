@@ -1,4 +1,4 @@
-;	// UnoDOS 3 - An operating system for the divMMC SD card interface.
+;	// UnoDOS 3 - A disk operating system for the divMMC SD card interface.
 ;	// Copyright (c) 2017-2026 Source Solutions, Inc.
 
 ;	// UnoDOS 3 is free software: you can redistribute it and/or modify
