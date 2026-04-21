@@ -1749,33 +1749,24 @@ store_decimal_remainder:
 	ld c, a;							// store decimal remainder in C
 	ret;								// return with result in HLD, remainder in C
 
-	inc c;								// data table entry
-	ld a, (bc);							// load from table
-	ld d, c;							// data manipulation
-	ld a, (bc);							// load from table
-	ld d, c;							// data manipulation
-	ld a, (bc);							// load from table
-	ld e, a;							// store in E register
-	ld a, (bc);							// load from table
-	add a, e;							// add to accumulator
-	dec bc;								// decrement table pointer
-	xor %00001001;						// XOR with bit pattern (data processing)
-	ret z;								// return if zero result
-	add hl, bc;							// lookup table processing
-	ret z;								// return if zero
-	add hl, bc;							// lookup table processing
-	ret z;								// return if zero
-	add hl, bc;							// lookup table processing
-	exx;								// exchange register sets
-	add hl, bc;							// lookup table processing
-	call po, $0a;						// call if parity odd
-	jr nz, data_processing_section;		// jump if not zero
-	jr nz, shift_division_loop;			// jump to division routine
-	add hl, bc;							// lookup table processing
-	pop de;								// restore DE from stack
-	add hl, bc;							// lookup table processing
-	dec a;								// decrement accumulator
-	inc h;								// increment H register
+; // sys call table
+L091D:
+	defw L0A0C;							// 
+	defw L0A51;							// 
+	defw L0A51;							// 
+	defw handle_file_operation;			// 
+	defw L0B83;							// 
+	defw L09EE;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09D9; 						// 
+	defw L0AE4;							// 
+	defw L2000;							// 
+	defw L2007;							// 
+	defw L09CC;							// 
+	defw L09D1;							// 
+	defw L243D;							// 
 
 ; // data processing and lookup table section
 data_processing_section:
@@ -1887,7 +1878,7 @@ syscall_reg_save:
 system_call_dispatch:
 	ld a, iyl;							// get system call number
 	push hl;							// save HL register
-	ld hl, $091d;						// point to system call table (04_files.asm)
+	ld hl, L091D;						// point to system call table (04_files.asm)
 	add a, a;							// multiply by 2 (each entry is 2 bytes)
 	add a, l;							// add to table base address
 	ld l, a;							// store in L
@@ -1903,20 +1894,24 @@ get_handler_address:
 	ex (sp), hl;						// put handler address on stack, restore HL
 	ret;								// "call" handler by returning to it
 
+L09C8:
 	ld a, $14;							// error code: invalid function number
 	scf;								// set carry flag (error)
 	ret;								// return with error
 
+L09CC:
 	ld a, ($2e32);						// get drive status
 	or a;								// test if drive available
 	ret;								// return with status
 
 ;	// default date and time for files
+L09D1:
 	ld de, $6000;						// 12:00:00
 	ld bc, $28c2;						// June 2, 2000
 	or a;								// clear carry flag (success)
 	ret;								// return with default date/time
 
+L09D9:
 	and a;								// test if drive number is zero
 	jr nz, set_current_drive;			// if not zero, set as current drive
 	ld a, ($2d46);						// get current drive number
@@ -1933,6 +1928,7 @@ set_current_drive:
 	ld ($2d46), a;						// set as current drive
 	ret;								// return success
 
+L09EE:
 	and %11111000;						// mask to get file handle index
 	ld c, a;							// save handle index
 	ld hl, $2d00;						// point to file handle table
@@ -1955,6 +1951,8 @@ search_file_handles:
 	ret c;								// return if error occurred
 	ld a, c;							// get handle number back
 	jp close_handle_slot;				// jump to handle completion
+
+L0A0C:
 	ld ($3df4), hl;						// save HL register 
 	ld ($3dfa), a;						// save accumulator
 	ld ($3df6), bc;						// save BC register
@@ -1996,6 +1994,8 @@ invoke_file_operation:
 	ld ixh, e;							// store call number in IXH
 	pop de;								// restore DE register
 	jp find_handle_with_setup;			// jump to handler (04_files.asm)
+
+L0A51:
 	call invoke_file_operation;			// invoke file operation
 	ret c;								// return if error
 	push hl;							// save HL register
@@ -2116,6 +2116,7 @@ return_handle_error:
 	scf;								// set carry flag (error)
 	ret;								// return with error
 
+L0AE4:
 	ld de, $2d01;						// point to file handle data (skip flags)
 	ld b, $0c;							// 12 file handles maximum
 	ld c, 0;							// counter for open files
@@ -2226,6 +2227,7 @@ handle_drive_table_op:
 	ld (hl), a;							// store in drive table
 	ret;								// return to caller
 
+L0B83:
 	and a;								// test file system type
 	jr z, handle_standard_filesystem;	// jump if standard file system
 	ld b, a;							// save file system type
@@ -5906,6 +5908,8 @@ L2000:
 	call L23C9;							// initialize UnoDOS system
 	ret c;								// return if initialization failed
 	jp $2800;							// jump to BASIC extension entry point
+
+L2007:
 	call L23C9;							// re-initialize system
 	ret c;								// return if failed
 	jp $28be;							// jump to secondary entry point
@@ -6624,6 +6628,7 @@ L2430:
 	defb f_open;						// open file operation
 	ret;								// return with open result
 
+L243D:
 	ld a, ($3df8);						// load current drive state
 	ld ($3df0), a;						// save drive state for operation
 	push hl;							// save HL register
