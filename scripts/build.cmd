@@ -1,4 +1,3 @@
-copy zeus\zcl.exe src\zcl.exe
 cd src
 zcl kernel.asm
 erase zcl.exe

@@ -3,6 +3,19 @@
 ## Introduction
 UnoDOS 3 is a Z80-based operating system designed for the divMMC SD card interface, providing advanced file, memory, and device management for ZX Spectrum-compatible systems. This guide covers the architecture, memory map, system variables, kernel structure, and programming conventions for UnoDOS 3.
 
+## Kernel
+
+The kernel provides the interface between the divMMC hardware and the host machine.
+
+### Third-Party Components
+
+#### Kernel Extensions
+
+UnoDOS 3 supports third-party kernel extensions that provide additional functionality.
+
+#### Commands
+UnoDOS 3 supports small programs that provide shell functions when using UnoDOS 3 without SE Basic. 
+
 ---
 
 ## System Architecture
