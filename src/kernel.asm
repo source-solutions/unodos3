@@ -1751,93 +1751,136 @@ store_decimal_remainder:
 
 ; // sys call table
 L091D:
-	defw L0A0C;							// 
-	defw L0A51;							// 
-	defw L0A51;							// 
-	defw handle_file_operation;			// 
-	defw L0B83;							// 
+
+; // hook base
+	defw L0A0C;							// disk_status
+	defw L0A51;							// disk_read
+	defw L0A51;							// disk_write
+	defw handle_file_operation;			// disk_ioctl
+	defw L0B83;							// disk_info
 	defw L09EE;							// 
 	defw L09C8;							// 
 	defw L09C8;							// 
-	defw L09C8;							// 
-	defw L09D9; 						// 
-	defw L0AE4;							// 
-	defw L2000;							// 
-	defw L2007;							// 
-	defw L09CC;							// 
-	defw L09D1;							// 
+
+; // misc base
+	defw L09C8;							// m_dosversion
+	defw L09D9; 						// m_getsetdrv
+	defw L0AE4;							// m_driveinfo
+	defw L2000;							// m_tapein
+	defw L2007;							// m_tapeout
+	defw L09CC;							// m_gethandle
+	defw L09D1;							// m_getdate
 	defw L243D;							// 
+	defw $22A1;							// 
+	defw $09C8;							// 
+	defw $09C8;							// 
+	defw $09C8;							// 
+	defw $09C8;							// 
+	defw $09C8;							// 
+	defw $09C8;							// 
+	defw $09C8;							// 
+
+; // fsys_base
+	defw $0734;							// f_mount
+	defw $06F8;							// f_umount
+	defw L0AA2;							// f_open
+	defw $0ABA;							// f_close
+	defw $0AD0;							// f_sync
+	defw $0AD0;							// f_read
+	defw $0AD0;							// f_write
+	defw $0AD0;							// f_seek
+	defw $0AD0;							// f_fgetpos
+	defw $0AD0;							// f_fstat
+	defw $0AD0;							// f_ftruncate
+	defw L0AA2;							// f_opendir
+	defw $0AD0;							// f_readdir
+	defw $0AD0;							// f_telldir
+	defw $0AD0;							// f_seekdir
+	defw $0AD0;							// f_rewinddir
+	defw $0B19;							// f_getcwd
+	defw $0B19;							// f_chdir
+	defw $0B19;							// f_mkdir
+	defw $0B19;							// f_rmdir
+	defw $0B19;							// f_stat
+	defw $0B19;							// f_unlink
+	defw $0B19;							// f_truncate
+	defw $0B19;							// f_attrib
+	defw $0B19;							// f_rename
+	defw $0B19;							// f_getfree
+	defw $0B06;							// 
+	defw $0B19;							// 
 
 ; // data processing and lookup table section
-data_processing_section:
-	and c;								// AND with C register
-	ld ($09c8), hl;						// store HL at memory address $09c8
-	ret z;								// return if zero
-	add hl, bc;							// table lookup operation
-	ret z;								// return if zero
-	add hl, bc;							// table lookup operation
-	ret z;								// return if zero
-	add hl, bc;							// table lookup operation
-	ret z;								// return if zero
-	add hl, bc;							// table lookup operation
-	ret z;								// return if zero
-	add hl, bc;							// table lookup operation
-	ret z;								// return if zero
-	add hl, bc;							// table lookup operation
-	inc (hl);							// increment memory location
-	rlca;								// rotate left circular
-	ret m;								// return if negative
-	ld b, $a2;							// load table index $a2
-	ld a, (bc);							// load from lookup table
-	cp d;								// compare with D
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry (>=)
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	and d;								// AND with D register
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	ret nc;								// return if no carry
-	ld a, (bc);							// load from lookup table
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
-	ld b, $0b;							// load table index $0b
-	add hl, de;							// table offset calculation
-	dec bc;								// decrement table pointer
+;
+;data_processing_section:
+;	and c;								// AND with C register
+;	ld ($09c8), hl;						// store HL at memory address $09c8
+;	ret z;								// return if zero
+;	add hl, bc;							// table lookup operation
+;	ret z;								// return if zero
+;	add hl, bc;							// table lookup operation
+;	ret z;								// return if zero
+;	add hl, bc;							// table lookup operation
+;	ret z;								// return if zero
+;	add hl, bc;							// table lookup operation
+;	ret z;								// return if zero
+;	add hl, bc;							// table lookup operation
+;	ret z;								// return if zero
+;	add hl, bc;							// table lookup operation
+;	inc (hl);							// increment memory location
+;	rlca;								// rotate left circular
+;	ret m;								// return if negative
+;	ld b, $a2;							// load table index $a2
+;	ld a, (bc);							// load from lookup table
+;	cp d;								// compare with D
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry (>=)
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	and d;								// AND with D register
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	ret nc;								// return if no carry
+;	ld a, (bc);							// load from lookup table
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
+;	ld b, $0b;							// load table index $0b
+;	add hl, de;							// table offset calculation
+;	dec bc;								// decrement table pointer
 
 ;;; 07_dispatcher.asm
 
@@ -2066,6 +2109,7 @@ calc_address_offset:
 	ld b, a;							// store updated high byte
 	ret;								// return with 32-bit sum in BCDE
 
+L0AA2:
 	call init_file_handle;				// call file operation handler
 	ret c;								// return if operation failed
 	push hl;							// save HL register
