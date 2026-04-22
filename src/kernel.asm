@@ -1249,6 +1249,8 @@ mount_filesystems_loop:
 	ld de, 6;							// each filesystem entry is 6 bytes
 	add hl, de;							// point to next filesystem entry
 	jr mount_filesystems_loop;			// continue with next filesystem
+
+L06F8:
 	call search_filesystem_type;		// search for filesystem type in supported list
 	scf;								// set carry flag to indicate error
 	ret z;								// return if zero flag set
@@ -1303,6 +1305,7 @@ drive_already_mounted:
 	scf;								// set carry flag to indicate error
 	ret;								// return with error
 
+L0734:
 	ld l, a;							// store drive identifier in L register
 	push hl;							// save drive identifier on stack
 	push bc;							// save BC register on stack
@@ -1771,116 +1774,44 @@ L091D:
 	defw L09CC;							// m_gethandle
 	defw L09D1;							// m_getdate
 	defw L243D;							// 
-	defw $22A1;							// 
-	defw $09C8;							// 
-	defw $09C8;							// 
-	defw $09C8;							// 
-	defw $09C8;							// 
-	defw $09C8;							// 
-	defw $09C8;							// 
-	defw $09C8;							// 
+	defw L22A1;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
+	defw L09C8;							// 
 
 ; // fsys_base
-	defw $0734;							// f_mount
-	defw $06F8;							// f_umount
+	defw L0734;							// f_mount
+	defw L06F8;							// f_umount
 	defw L0AA2;							// f_open
-	defw $0ABA;							// f_close
-	defw $0AD0;							// f_sync
-	defw $0AD0;							// f_read
-	defw $0AD0;							// f_write
-	defw $0AD0;							// f_seek
-	defw $0AD0;							// f_fgetpos
-	defw $0AD0;							// f_fstat
-	defw $0AD0;							// f_ftruncate
+	defw L0ABA;							// f_close
+	defw get_file_handle;				// f_sync
+	defw get_file_handle;				// f_read
+	defw get_file_handle;				// f_write
+	defw get_file_handle;				// f_seek
+	defw get_file_handle;				// f_fgetpos
+	defw get_file_handle;				// f_fstat
+	defw get_file_handle;				// f_ftruncate
 	defw L0AA2;							// f_opendir
-	defw $0AD0;							// f_readdir
-	defw $0AD0;							// f_telldir
-	defw $0AD0;							// f_seekdir
-	defw $0AD0;							// f_rewinddir
-	defw $0B19;							// f_getcwd
-	defw $0B19;							// f_chdir
-	defw $0B19;							// f_mkdir
-	defw $0B19;							// f_rmdir
-	defw $0B19;							// f_stat
-	defw $0B19;							// f_unlink
-	defw $0B19;							// f_truncate
-	defw $0B19;							// f_attrib
-	defw $0B19;							// f_rename
-	defw $0B19;							// f_getfree
-	defw $0B06;							// 
-	defw $0B19;							// 
-
-; // data processing and lookup table section
-;
-;data_processing_section:
-;	and c;								// AND with C register
-;	ld ($09c8), hl;						// store HL at memory address $09c8
-;	ret z;								// return if zero
-;	add hl, bc;							// table lookup operation
-;	ret z;								// return if zero
-;	add hl, bc;							// table lookup operation
-;	ret z;								// return if zero
-;	add hl, bc;							// table lookup operation
-;	ret z;								// return if zero
-;	add hl, bc;							// table lookup operation
-;	ret z;								// return if zero
-;	add hl, bc;							// table lookup operation
-;	ret z;								// return if zero
-;	add hl, bc;							// table lookup operation
-;	inc (hl);							// increment memory location
-;	rlca;								// rotate left circular
-;	ret m;								// return if negative
-;	ld b, $a2;							// load table index $a2
-;	ld a, (bc);							// load from lookup table
-;	cp d;								// compare with D
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry (>=)
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	and d;								// AND with D register
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	ret nc;								// return if no carry
-;	ld a, (bc);							// load from lookup table
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
-;	ld b, $0b;							// load table index $0b
-;	add hl, de;							// table offset calculation
-;	dec bc;								// decrement table pointer
+	defw get_file_handle;				// f_readdir
+	defw get_file_handle;				// f_telldir
+	defw get_file_handle;				// f_seekdir
+	defw get_file_handle;				// f_rewinddir
+	defw init_file_handle;				// f_getcwd
+	defw init_file_handle;				// f_chdir
+	defw init_file_handle;				// f_mkdir
+	defw init_file_handle;				// f_rmdir
+	defw init_file_handle;				// f_stat
+	defw init_file_handle;				// f_unlink
+	defw init_file_handle;				// f_truncate
+	defw init_file_handle;				// f_attrib
+	defw init_file_handle;				// f_rename
+	defw init_file_handle;				// f_getfree
+	defw L0B06;							// 
+	defw init_file_handle;				// 
 
 ;;; 07_dispatcher.asm
 
@@ -2126,6 +2057,7 @@ L0AA2:
 	pop hl;								// restore HL register
 	ret;								// return to caller
 
+L0ABA:
 	call get_file_handle;				// call handle validation routine
 	ret c;								// return if validation failed
 	ld a, ixh;							// get handle number for cleanup
@@ -2191,6 +2123,7 @@ advance_handle_pointer:
 	ld a, c;							// get count of open files
 	ret;								// return with count
 
+L0B06:
 	push iy;							// save IY register
 	call configure_system_drive;		// validate drive (04_files.asm)
 	pop bc;								// restore BC register
@@ -6388,7 +6321,7 @@ L2299:
 	ret;								// return
 
 ; Function: Error code handler and system boundary checks  
-L22A5:
+L22A1:
 	cp $FF;								// check for error code $FF
 	jp z, full_init;					// jump to error handler if found
 	cp $FE;								// check for error code $FE
