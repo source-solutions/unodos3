@@ -57,7 +57,7 @@ char_handler_entry:
 
 	org $0018
 restart_18:
-	jp $0cbd;							// jump to ROM routine caller (RST $18 vector)
+	jp command_dispatcher;				// jump to ROM routine caller (RST $18 vector)
 
 	org $001f
 next_char_rst20:
@@ -959,7 +959,7 @@ handle_unodos_load:
 	call L23C4;							// call UnoDOS file load handler
 	pop de;								// restore filename pointer
 	jr c, fallback_rom_load;			// if load failed, use ROM LOAD
-	jp $200e;							// if successful, jump to completion routine
+	jp L200E;							// if successful, jump to completion routine
 
 screen_coord_wrap:
 	inc e;								// increment column (X coordinate)
@@ -3460,7 +3460,7 @@ process_file_sector_mapping:
 	ret nz;								// return with error if not empty block
 	bit 2, (ix + 1);					// test file flag bit 2
 	ret z;								// return if bit not set
-	jp $3000;							// jump to extended processing
+	jp L3000;							// jump to extended processing
 
 ; Function: Map sector from cluster with position handling
 map_sector_from_cluster:
