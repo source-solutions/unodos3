@@ -101,7 +101,7 @@ keyboard_test_pattern:
 	ld bc, $fb00;						// load test pattern for keyboard scanning
 	ret;								// return to caller
 
-keyboard_ret_instruction equ keyboard_test_pattern + 2;	// points to RET instruction in L0049
+keyboard_ret_instruction equ keyboard_test_pattern + 2;	// points to RET instruction in keyboard_test_pattern
 
 char_process_continue:
 	jp error_handler_entry;				// jump to character processing continuation
@@ -2627,7 +2627,7 @@ data_area_parameters:
 	adc a, a;							// add A to itself with carry
 	ld d, $97;							// load immediate value $97 into D
 	ld d, $de;							// load immediate value $DE into D
-	jr format_output_routine;			// jump to L0E40
+	jr format_output_routine;			// jump to format_output_routine
 	ld sp, $369a;						// set stack pointer to $369A
 	add a, $19;							// add immediate value $19 to A
 	rst $38;							// restart at vector $38
@@ -2658,11 +2658,11 @@ data_area_parameters:
 	ld c, $c9;							// load immediate value $C9 into C
 	ex de, hl;							// exchange DE and HL
 	ld a, b;							// copy B to A register
-	call output_byte_to_file;			// call function at L0E4C
+	call output_byte_to_file;			// call function at output_byte_to_file
 	ld a, d;							// copy D to A register
-	call output_byte_to_file;			// call function at L0E4C
+	call output_byte_to_file;			// call function at output_byte_to_file
 	ld a, e;							// copy E to A register
-	call output_byte_to_file;			// call function at L0E4C
+	call output_byte_to_file;			// call function at output_byte_to_file
 	push iy;							// save IY on stack
 	pop hl;								// restore into HL
 	ld l, $18;							// load immediate value $18 into L
@@ -2690,7 +2690,7 @@ output_byte_to_file:
 	rst $30;							// restart at vector $30
 	ld b, $c9;							// load B with immediate value $C9
 	push bc;							// save BC on stack
-	call search_free_memory;			// call function at L0E6D
+	call search_free_memory;			// call function at search_free_memory
 	pop bc;								// restore BC from stack
 	ret c;								// return if carry set
 	push hl;							// save HL on stack
@@ -2702,7 +2702,7 @@ output_byte_to_file:
 	ld (hl), e;							// store E at address HL
 	inc l;								// increment L register
 	ld (hl), d;							// store D at address HL
-	call validate_fs_structure;			// call function at L0E80
+	call validate_fs_structure;			// call function at validate_fs_structure
 	ld a, (iy + _flags);				// load A from IY+flags offset
 	ret;								// return to caller
 
@@ -2734,7 +2734,7 @@ validate_fs_structure:
 	ld bc, 0;							// clear BC register pair
 	ld de, 0;							// clear DE register pair
 	push hl;							// save HL on stack
-	call read_disk_sector;				// call function at L1096
+	call read_disk_sector;				// call function at read_disk_sector
 	pop hl;								// restore HL from stack
 	jr c, clear_error_set_carry;		// jump to error handler if carry
 	inc h;								// increment H register
@@ -2839,8 +2839,8 @@ process_fs_mode:
 	rr l;								// rotate L right with carry
 	ld (iy + 66), l;					// store result at IY+66
 	ld bc, 0;							// clear BC register pair
-	call add_32bit;						// call subroutine at L0831
-	jr calculate_cluster_params;		// jump to L0F68
+	call add_32bit;						// call subroutine at add_32bit
+	jr calculate_cluster_params;		// jump to calculate_cluster_params
 
 ; // process FAT parameters for FAT16
 process_fat_parameters:
@@ -2864,7 +2864,7 @@ process_fat_parameters:
 	rl d;								// rotate D left through carry
 	rl c;								// rotate C left through carry
 	rl b;								// rotate B left through carry
-	call call_cluster_processing;		// call subroutine at L1173
+	call call_cluster_processing;		// call subroutine at call_cluster_processing
 
 ; // calculate cluster parameters and free space
 calculate_cluster_params:
@@ -2872,15 +2872,15 @@ calculate_cluster_params:
 	ld l, (iy + 37);					// load value from IY+37 into L
 	sla l;								// shift L left arithmetic
 	rl h;								// rotate H left through carry
-	call sub_32bit;						// call subroutine at L0836
+	call sub_32bit;						// call subroutine at sub_32bit
 	ld (iy + 45), b;					// store B at IY+45
 	ld (iy + 44), c;					// store C at IY+44
 	ld (iy + 43), d;					// store D at IY+43
 	ld (iy + 42), e;					// store E at IY+42
-	call calculate_free_clusters;		// call subroutine at L0F8E
-	call process_directory_entry;		// call subroutine at L0FBE
-	call init_volume_path;				// call subroutine at L1065
-	call process_volume_label;			// call subroutine at L1021
+	call calculate_free_clusters;		// call subroutine at calculate_free_clusters
+	call process_directory_entry;		// call subroutine at process_directory_entry
+	call init_volume_path;				// call subroutine at init_volume_path
+	call process_volume_label;			// call subroutine at process_volume_label
 	or a;								// clear carry flag
 	ret;								// return from subroutine
 
@@ -2927,7 +2927,7 @@ process_directory_entry:
 	ld bc, 0;							// clear BC register pair
 	ld de, 1;							// set DE to 1
 	push hl;							// save HL on stack
-	call read_disk_sector;				// call subroutine at L1096
+	call read_disk_sector;				// call subroutine at read_disk_sector
 	pop hl;								// restore HL from stack
 	jr c, $100f;						// jump if carry set (error)
 	inc h;								// increment high byte of address
@@ -2957,22 +2957,22 @@ process_directory_entry:
 	or e;								// OR E with A (check for zero)
 	or d;								// OR D with A (check for zero)
 	jr z, $100f;						// jump if zero result
-	call set_working_cluster;			// call subroutine at L11D0
+	call set_working_cluster;			// call subroutine at set_working_cluster
 	rst $30;							// floating point system call
 	ld bc, $b6c3;						// load BC with float operation code
 	ld de, $ff01;						// load DE with value $FF01
 	rst $38;							// system call (error or comparison)
 	ld de, $ffff;						// load DE with value $FFFF
-	call set_working_cluster;			// call subroutine at L11D0
+	call set_working_cluster;			// call subroutine at set_working_cluster
 	ld bc, 0;							// clear BC register pair
 	ld de, 2;							// set DE to 2
-	jp set_directory_cluster;			// jump to L11B6
+	jp set_directory_cluster;			// jump to set_directory_cluster
 
 ; // process volume label and disk information
 process_volume_label:
 	ld hl, $1416;						// load address $1416
 	ld a, 8;							// set A to 8
-	call process_filesystem_operation;	// call subroutine at L1470
+	call process_filesystem_operation;	// call subroutine at process_filesystem_operation
 	jr nc, setup_label_copy;			// jump if no carry (success)
 	ld hl, $2d2b;						// load address $2D2B
 
@@ -3033,7 +3033,7 @@ default_label_string:
 ; // initialize volume path string
 init_volume_path:
 	call process_cluster_pointer;		// call subroutine at process_cluster_pointer
-	call store_fs_parameters;			// call subroutine at L107B
+	call store_fs_parameters;			// call subroutine at store_fs_parameters
 	push iy;							// push IY register onto stack
 	pop hl;								// pop into HL (copy IY to HL)
 	ld l, $80;							// set L to offset $80
@@ -3847,7 +3847,7 @@ validate_file_operation:
 set_error_prepare_buffer:
 	ld a, $11;							// load error code 17
 	ld (ix + 6), a;						// store error code in file descriptor
-	ld hl, L2600;						// load buffer address
+	ld hl, disk_sector_buffer;			// load buffer address
 	push hl;							// save buffer address
 	call process_file_sector;			// call buffer read function
 	pop hl;								// restore HL register
@@ -4248,11 +4248,11 @@ file_close_operation:
 file_flush_update:
 	or a;								// clear carry flag initially
 
-L1699 equ $1699
+file_flush_loop_start equ $1699
 
 	bit 3, (ix + 1);					// check if directory operation flag set
 	jp z, flush_dirty_buffer;			// jump to cleanup if not directory
-	call L16CB;							// call directory update function
+	call directory_update_function;		// call directory update function
 	ret c;								// return if update failed
 	ld de, $14;							// load offset to directory entry data
 	add hl, de;							// add offset to HL
@@ -4284,9 +4284,9 @@ error_buffer_management:
 	di;									// interrupts off
 
 ; // directory update processing function
-L16CB equ $16cb
+directory_update_function equ $16cb
 
-	djnz L1699;							// loop back to file flush if B register not zero
+	djnz file_flush_loop_start;			// loop back to file flush if B register not zero
 	ld e, h;							// copy H to E register
 	ld de, $1b21;						// load directory operation code
 	inc a;								// increment accumulator
@@ -4406,7 +4406,7 @@ clear_directory_entry:
 	set 2, (ix + 1);					// set buffer operation flag
 	call process_sector_decrement;		// call sector processing function
 	res 2, (ix + 1);					// clear buffer operation flag
-	ld hl, L2600;						// load sector buffer address
+	ld hl, disk_sector_buffer;			// load sector buffer address
 	ld bc, $01ff;						// load full sector size (511 bytes)
 
 ; // clear memory buffer with zeros
@@ -4486,7 +4486,7 @@ reset_file_position:
 
 ; // directory sector write function
 directory_sector_write:
-	ld hl, L2600;						// load sector buffer address
+	ld hl, disk_sector_buffer;			// load sector buffer address
 	call call_file_descriptor;			// call sector write routine
 	push af;							// save write result flags
 	xor a;								// clear accumulator
@@ -4496,7 +4496,7 @@ directory_sector_write:
 
 ; // directory position calculation function
 directory_position_function:
-	ld hl, L2600;						// load sector buffer address
+	ld hl, disk_sector_buffer;			// load sector buffer address
 	push hl;							// save buffer address
 	call process_file_sector;			// call directory sector read function
 	pop hl;								// restore buffer address
@@ -5901,9 +5901,9 @@ cleanup_routine:
 	jp store_char_processing;			// jump to cleanup routine
 	nop;								// padding
 
-L2019 equ $2019
+cached_compare_addr equ $2019
 
-	jr z, L2019;						// jump if condition met
+	jr z, cached_compare_addr;			// jump if condition met
 	rst $38;							// call RST $38 (error handler)
 
 	org $201e
@@ -6433,7 +6433,7 @@ load_processed_char:
 
 ; Function: Memory address comparison
 memory_address_compare:
-	ld a, (L2019);						// load saved address low byte
+	ld a, (cached_compare_addr);		// load saved address low byte
 	cp l;								// compare with current L
 	jr nz, save_current_address;		// jump if different
 	ld a, ($201a);						// load saved address high byte
@@ -6441,7 +6441,7 @@ memory_address_compare:
 	ret z;								// return if addresses match
 
 save_current_address:
-	ld (L2019), hl;						// save current address
+	ld (cached_compare_addr), hl;		// save current address
 	call build_alt_sys_path;			// call system function
 	ld a, $24;							// load file handle $24
 	ld b, 1;							// set mode to read
@@ -6580,7 +6580,7 @@ set_char_pointer_alt:
 store_pointer_later:
 	ld ($2e46), hl;						// store pointer for later use
 
-L241B equ $241b
+external_command_entry equ $241b
 
 ; Function: Process command and handle errors
 	call call_rom_routine_c1;			// call command processor
@@ -6666,7 +6666,7 @@ advance_next_char:
 	djnz load_path_char;				// continue loop if counter not zero
 	ret;								// return from function
 
-L248A equ $248a
+dirs_io_entry equ $248a
 
 ;	// called from dirs.io
 ; Function: Process directory command (called from dirs.io)
@@ -6964,7 +6964,7 @@ shift_right_b_reg:
 	rr d;								// rotate right D register
 	rr e;								// rotate right E register
 
-L2600 equ $ - 1
+disk_sector_buffer equ $ - 1
 	rl l;								// rotate left L (collect overflow)
 	dec a;								// decrement shift counter
 	jr nz, shift_right_b_reg;			// repeat until counter zero
@@ -7339,7 +7339,7 @@ check_error_code_5:
 	jr nz, call_dir_entry_create;		// jump if comparison failed (file exists)
 	ld a, ($3c23);						// load saved drive number
 	ld (ix + $06), a;					// restore drive number to file descriptor
-	call L16CB;							// call directory update function
+	call directory_update_function;		// call directory update function
 	jr c, file_operation_error_handler;	// jump to error handler if update failed
 	ex de, hl;							// exchange DE and HL registers
 	ld hl, $3c06;						// load filename buffer address
@@ -7372,7 +7372,7 @@ call_dir_sector_write:
 	call directory_sector_write;		// call directory sector write function
 	ld a, ($3c23);						// load saved drive number
 	ld (ix + $06), a;					// restore drive number to file descriptor
-	call L16CB;							// call directory update function
+	call directory_update_function;		// call directory update function
 	jr c, file_operation_error_handler;	// jump to error handler if update failed
 	ld (hl), $e5;						// mark directory entry as deleted
 
@@ -7513,7 +7513,7 @@ directory_creation_helper:
 	call file_creation_operation;		// call file creation function
 	ld (ix + 0), 0;						// clear file descriptor error status
 	ret c;								// return if creation failed
-	ld hl, L2600;						// load sector buffer address
+	ld hl, disk_sector_buffer;			// load sector buffer address
 	call directory_entry_sector_calc;	// call directory sector calculation
 	ret c;								// return if calculation failed
 	ld a, $0b;							// load offset to attributes field
@@ -7584,7 +7584,7 @@ load_filename_character:
 	jr nz, adjust_file_access_params;	// jump if not zero  
 	jr nz, clear_b_byte_count;			// jump if not zero
 	jr nz, store_byte_count_c;			// jump if not zero
-	jr nz, L33CD;						// jump if not zero
+	jr nz, ldir_copy_block;				// jump if not zero
 	ld a, $81;							// load file access mode
 	call init_file_lookup;				// call file lookup function
 	ret c;								// return if lookup failed
@@ -7610,7 +7610,7 @@ clear_b_byte_count:
 store_byte_count_c:
 	ld c, a;							// store byte count in C register
 
-L33CD equ $33cd
+ldir_copy_block equ $33cd
 
 	ldir;								// copy BC bytes from HL to DE
 	ld a, b;							// load remaining byte count
@@ -7733,7 +7733,7 @@ enhanced_directory_processing:
 	ld bc, $0df7;						// load date validation code
 	jr z, date_processing_completion;	// jump if date validation passed
 	call check_file_position;			// call date conversion function
-	ld hl, L2600;						// load date output buffer
+	ld hl, disk_sector_buffer;			// load date output buffer
 	push hl;							// save buffer pointer
 	call read_disk_sector;				// call date formatting function
 	pop hl;								// restore buffer pointer
@@ -8014,7 +8014,7 @@ directory_entry_attribute_mgmt:
 	inc hl;								// increment buffer pointer
 	ld a, (iy + 1);						// load system variable byte 1
 	ld (hl), a;							// store in directory buffer
-	call L16CB;							// call directory sector access
+	call directory_update_function;		// call directory sector access
 	pop de;								// restore directory entry pointer
 	ret c;								// return if sector access failed
 	push de;							// save directory entry pointer again
