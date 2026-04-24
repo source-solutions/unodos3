@@ -1752,6 +1752,8 @@ store_decimal_remainder:
 	ld c, a;							// store decimal remainder in C
 	ret;								// return with result in HLD, remainder in C
 
+;;; 07_dispatcher.asm
+
 ; // sys call table
 syscall_table:
 
@@ -1812,8 +1814,6 @@ syscall_table:
 	defw init_file_handle;				// f_getfree
 	defw validate_drive_handle;			// 
 	defw init_file_handle;				// 
-
-;;; 07_dispatcher.asm
 
 ;	// RST08_handler
 ; // main syscall dispatcher (RST $08 entry point)
@@ -5600,6 +5600,8 @@ restore_cpu_interrupt:
 	ret;								// and exit
 
 ;	org $1e39
+; // NOTE: this is AY PSG register data for the boot chime (belongs logically
+; // with boot_chime in 13_boot_data but is fixed here by ROM address constraints)
 data:
 	defb 61, 13;						// r0-1		C1
 	defb 159, 6;						// r2-3		C2				
