@@ -3923,7 +3923,7 @@ L14F4:
 
 ; // handle end of directory (file not found)
 L1505:
-	call handle_deleted_entry;							// call deleted entry handler
+	call handle_deleted_entry;			// call deleted entry handler
 	ld a, (ix + 30);					// load saved deleted entry number
 	ld (ix + 6), a;						// restore entry counter
 	ld a, (ix + 31);					// load saved deleted entry sector
