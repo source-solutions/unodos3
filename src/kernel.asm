@@ -62,7 +62,7 @@ restart_18:
 	org $001f
 next_char_rst20:
 restart_20 equ next_char_rst20 + 1
-	jr L004B;							// jump to next character routine
+	jr keyboard_ret_instruction;							// jump to next character routine
 	ld e, l;							// save L register to E
 	ld e, h;							// save H register to E (overwrites previous)
 	ld (x_ptr), hl;						// save HL to ? marker pointer in BASIC
@@ -101,7 +101,7 @@ keyboard_test_pattern:
 	ld bc, $fb00;						// load test pattern for keyboard scanning
 	ret;								// return to caller
 
-L004B equ keyboard_test_pattern + 2;	// points to RET instruction in L0049
+keyboard_ret_instruction equ keyboard_test_pattern + 2;	// points to RET instruction in L0049
 
 char_process_continue:
 	jp error_handler_entry;				// jump to character processing continuation
@@ -665,7 +665,7 @@ execute_page3_code:
 	nop;								// padding/alignment
 	ld a, 3;							// select divMMC page 3
 	out (mmcram), a;					// switch to divMMC page 3
-	call L2000;							// call loaded code at $2000
+	call system_entry;							// call loaded code at $2000
 	xor a;								// clear accumulator
 	out (mmcram), a;					// switch back to divMMC page 0
 	ret;								// return to caller
@@ -1250,7 +1250,7 @@ mount_filesystems_loop:
 	add hl, de;							// point to next filesystem entry
 	jr mount_filesystems_loop;			// continue with next filesystem
 
-L06F8:
+filesystem_unmount:
 	call search_filesystem_type;		// search for filesystem type in supported list
 	scf;								// set carry flag to indicate error
 	ret z;								// return if zero flag set
@@ -1305,7 +1305,7 @@ drive_already_mounted:
 	scf;								// set carry flag to indicate error
 	ret;								// return with error
 
-L0734:
+filesystem_mount:
 	ld l, a;							// store drive identifier in L register
 	push hl;							// save drive identifier on stack
 	push bc;							// save BC register on stack
@@ -1753,41 +1753,41 @@ store_decimal_remainder:
 	ret;								// return with result in HLD, remainder in C
 
 ; // sys call table
-L091D:
+syscall_table:
 
 ; // hook base
-	defw L0A0C;							// disk_status
-	defw L0A51;							// disk_read
-	defw L0A51;							// disk_write
+	defw handle_disk_status;			// disk_status
+	defw disk_read_write;				// disk_read
+	defw disk_read_write;				// disk_write
 	defw handle_file_operation;			// disk_ioctl
-	defw L0B83;							// disk_info
-	defw L09EE;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
+	defw disk_info_handler;				// disk_info
+	defw find_handle_by_index;			// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
 
 ; // misc base
-	defw L09C8;							// m_dosversion
-	defw L09D9; 						// m_getsetdrv
-	defw L0AE4;							// m_driveinfo
-	defw L2000;							// m_tapein
-	defw L2007;							// m_tapeout
-	defw L09CC;							// m_gethandle
-	defw L09D1;							// m_getdate
-	defw L243D;							// 
-	defw L22A1;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
-	defw L09C8;							// 
+	defw invalid_function_error;		// m_dosversion
+	defw get_set_drive; 				// m_getsetdrv
+	defw drive_info;					// m_driveinfo
+	defw system_entry;					// m_tapein
+	defw system_reinit;					// m_tapeout
+	defw get_drive_status;				// m_gethandle
+	defw get_default_date;				// m_getdate
+	defw cmd_folder_setup;				// 
+	defw error_code_handler;			// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
+	defw invalid_function_error;		// 
 
 ; // fsys_base
-	defw L0734;							// f_mount
-	defw L06F8;							// f_umount
-	defw L0AA2;							// f_open
-	defw L0ABA;							// f_close
+	defw filesystem_mount;				// f_mount
+	defw filesystem_unmount;			// f_umount
+	defw file_open;						// f_open
+	defw file_close;					// f_close
 	defw get_file_handle;				// f_sync
 	defw get_file_handle;				// f_read
 	defw get_file_handle;				// f_write
@@ -1795,7 +1795,7 @@ L091D:
 	defw get_file_handle;				// f_fgetpos
 	defw get_file_handle;				// f_fstat
 	defw get_file_handle;				// f_ftruncate
-	defw L0AA2;							// f_opendir
+	defw file_open;						// f_opendir
 	defw get_file_handle;				// f_readdir
 	defw get_file_handle;				// f_telldir
 	defw get_file_handle;				// f_seekdir
@@ -1810,7 +1810,7 @@ L091D:
 	defw init_file_handle;				// f_attrib
 	defw init_file_handle;				// f_rename
 	defw init_file_handle;				// f_getfree
-	defw L0B06;							// 
+	defw validate_drive_handle;							// 
 	defw init_file_handle;				// 
 
 ;;; 07_dispatcher.asm
@@ -1852,7 +1852,7 @@ syscall_reg_save:
 system_call_dispatch:
 	ld a, iyl;							// get system call number
 	push hl;							// save HL register
-	ld hl, L091D;						// point to system call table (04_files.asm)
+	ld hl, syscall_table;						// point to system call table (04_files.asm)
 	add a, a;							// multiply by 2 (each entry is 2 bytes)
 	add a, l;							// add to table base address
 	ld l, a;							// store in L
@@ -1868,24 +1868,24 @@ get_handler_address:
 	ex (sp), hl;						// put handler address on stack, restore HL
 	ret;								// "call" handler by returning to it
 
-L09C8:
+invalid_function_error:
 	ld a, $14;							// error code: invalid function number
 	scf;								// set carry flag (error)
 	ret;								// return with error
 
-L09CC:
+get_drive_status:
 	ld a, ($2e32);						// get drive status
 	or a;								// test if drive available
 	ret;								// return with status
 
 ;	// default date and time for files
-L09D1:
+get_default_date:
 	ld de, $6000;						// 12:00:00
 	ld bc, $28c2;						// June 2, 2000
 	or a;								// clear carry flag (success)
 	ret;								// return with default date/time
 
-L09D9:
+get_set_drive:
 	and a;								// test if drive number is zero
 	jr nz, set_current_drive;			// if not zero, set as current drive
 	ld a, ($2d46);						// get current drive number
@@ -1902,7 +1902,7 @@ set_current_drive:
 	ld ($2d46), a;						// set as current drive
 	ret;								// return success
 
-L09EE:
+find_handle_by_index:
 	and %11111000;						// mask to get file handle index
 	ld c, a;							// save handle index
 	ld hl, $2d00;						// point to file handle table
@@ -1926,7 +1926,7 @@ search_file_handles:
 	ld a, c;							// get handle number back
 	jp close_handle_slot;				// jump to handle completion
 
-L0A0C:
+handle_disk_status:
 	ld ($3df4), hl;						// save HL register 
 	ld ($3dfa), a;						// save accumulator
 	ld ($3df6), bc;						// save BC register
@@ -1969,7 +1969,7 @@ invoke_file_operation:
 	pop de;								// restore DE register
 	jp find_handle_with_setup;			// jump to handler (04_files.asm)
 
-L0A51:
+disk_read_write:
 	call invoke_file_operation;			// invoke file operation
 	ret c;								// return if error
 	push hl;							// save HL register
@@ -2040,7 +2040,7 @@ calc_address_offset:
 	ld b, a;							// store updated high byte
 	ret;								// return with 32-bit sum in BCDE
 
-L0AA2:
+file_open:
 	call init_file_handle;				// call file operation handler
 	ret c;								// return if operation failed
 	push hl;							// save HL register
@@ -2057,7 +2057,7 @@ L0AA2:
 	pop hl;								// restore HL register
 	ret;								// return to caller
 
-L0ABA:
+file_close:
 	call get_file_handle;				// call handle validation routine
 	ret c;								// return if validation failed
 	ld a, ixh;							// get handle number for cleanup
@@ -2092,7 +2092,7 @@ return_handle_error:
 	scf;								// set carry flag (error)
 	ret;								// return with error
 
-L0AE4:
+drive_info:
 	ld de, $2d01;						// point to file handle data (skip flags)
 	ld b, $0c;							// 12 file handles maximum
 	ld c, 0;							// counter for open files
@@ -2123,7 +2123,7 @@ advance_handle_pointer:
 	ld a, c;							// get count of open files
 	ret;								// return with count
 
-L0B06:
+validate_drive_handle:
 	push iy;							// save IY register
 	call configure_system_drive;		// validate drive (04_files.asm)
 	pop bc;								// restore BC register
@@ -2204,7 +2204,7 @@ handle_drive_table_op:
 	ld (hl), a;							// store in drive table
 	ret;								// return to caller
 
-L0B83:
+disk_info_handler:
 	and a;								// test file system type
 	jr z, handle_standard_filesystem;	// jump if standard file system
 	ld b, a;							// save file system type
@@ -2561,7 +2561,7 @@ memory_init_routine:
 	ld hl, ($2e46);						// get memory pointer
 	ld a, 2;							// select page 2
 	out (mmcram), a;					// switch to divMMC page 2
-	call L2000;							// call system initialization
+	call system_entry;							// call system initialization
 	ld ($3de8), hl;						// save result pointer
 	jp c, $20;							// jump if error occurred
 	ld a, 0;							// select divMMC page 0
@@ -2575,7 +2575,7 @@ memory_cleanup_with_hl:
 	jr c, cleanup_restore_page;			// jump to cleanup if error
 	ld a, 2;							// select divMMC page 2
 	out (mmcram), a;					// divMMC RAM page 2
-	call L2000;							// call system routine
+	call system_entry;							// call system routine
 
 ; // cleanup and restore divMMC memory page
 cleanup_restore_page:
@@ -5881,12 +5881,12 @@ L1FFB:
 
 ;	// UNODOS.SYS starts here
 	org $2000
-L2000:
+system_entry:
 	call L23C9;							// initialize UnoDOS system
 	ret c;								// return if initialization failed
 	jp $2800;							// jump to BASIC extension entry point
 
-L2007:
+system_reinit:
 	call L23C9;							// re-initialize system
 	ret c;								// return if failed
 	jp $28be;							// jump to secondary entry point
@@ -6321,7 +6321,7 @@ L2299:
 	ret;								// return
 
 ; Function: Error code handler and system boundary checks  
-L22A1:
+error_code_handler:
 	cp $FF;								// check for error code $FF
 	jp z, full_init;					// jump to error handler if found
 	cp $FE;								// check for error code $FE
@@ -6605,7 +6605,7 @@ L2430:
 	defb f_open;						// open file operation
 	ret;								// return with open result
 
-L243D:
+cmd_folder_setup:
 	ld a, ($3df8);						// load current drive state
 	ld ($3df0), a;						// save drive state for operation
 	push hl;							// save HL register
