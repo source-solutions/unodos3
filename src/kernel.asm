@@ -387,7 +387,7 @@ exit_to_basic:
 	ld hl, $0001;						// BASIC ROM entry point after initialization
 	jp jump_unmap_hl;					// unmap divMMC and jump into BASIC ROM
 
-;;; 03_screen.asm
+;;; 03_system_loader.asm
 
 display_filename:
 	call build_sys_path;				// construct full system file path with extension
@@ -822,7 +822,7 @@ print_size_units:
 	rst $10;							// print units digit
 	ret;								// return to caller
 
-;;; 04_files.asm
+;;; 04_tape.asm
 
 ;	// automatically mapped in by the hardware after M1 when PC=004C6h
 ;	// Automapped entry point for SAVE command
@@ -1148,7 +1148,7 @@ string_copy_done:
 null_terminator_byte:
 	defb 0;								// null terminator / padding byte
 
-;;; 05_math.asm
+;;; 05_arithmetic.asm
 
 	org $0686
 load_32bit_value:
@@ -2313,7 +2313,7 @@ complete_buffer_operation:
 	ld b, $b7;							// set operation code
 	ret;								// return with result
 
-;;; 08_error.asm
+;;; 08_error_dispatch.asm
 
 ;	// based on the Spectrum ROM's main_4 / main_g routine
 error_handler_entry:
@@ -2469,7 +2469,6 @@ return_to_basic:
 	ld hl, $16c5;						// BASIC command loop address
 	jp jump_unmap_hl;					// unmap and return to BASIC
 
-;;; 09_memory.asm
 
 set_error_1:
 	ld a, 1;							// set error code to 1
@@ -2610,7 +2609,7 @@ read_file_to_page2:
 	ld a, b;							// restore B register
 	ret;								// return to caller
 
-;;; 10_utils.asm
+;;; 09_filesystem.asm
 
 ; // open screen channel for output
 open_screen_channel:;					// called from dirs.io
@@ -3192,6 +3191,8 @@ cleanup_buffer_ops:
 	pop bc;								// restore BC register
 	pop de;								// restore DE register
 	ret;								// return with final status
+;;; 10_cluster_nav.asm
+
 
 ; // set file current sector address in descriptor
 set_file_sector_address:
@@ -3738,6 +3739,8 @@ validate_fat_char:
 	ld a, $5c;							// data bytes $3e $5c
 	ld a, h;							// data byte $7c
 	ld l, $2a;							// data bytes $2e $2a
+;;; 11_directory.asm
+
 
 ; Function: Compare directory entries
 compare_directory_entries:
@@ -4228,6 +4231,8 @@ extract_cluster_data:
 	inc b;								// increment B register
 	or a;								// clear carry flag
 	ret;								// return from function
+;;; 12_file_io.asm
+
 
 ; // file I/O operation with buffer management
 file_io_buffer_operation:
@@ -5094,7 +5099,7 @@ sector_shift_loop:
 	jr nz, sector_shift_loop;			// loop until 7 shifts complete
 	ret;								// return with value multiplied by 128
 
-;;; 11_data.asm
+;;; 13_boot_data.asm
 
 	org $1b37
 copyright:
@@ -5264,7 +5269,7 @@ sys_filename:
 	defm "unodos";						// UNODOS.SYS filename
 	defb 0;								// end marker
 
-;;; 12_spi.asm
+;;; 14_spi.asm
 
 spi_data_table_entry:
 	ld l, l;							// SPI data table entry
@@ -5775,7 +5780,7 @@ copy_b_to_a:
 	djnz load_byte_hl;					// loop if counter not zero
 	ret;								// return to caller
 
-;;; 13_romtest.asm
+;;; 15_sebasic.asm
 
 ;	org $1f3f
 file_test:
@@ -5820,7 +5825,7 @@ get_rom_byte:
 	ld a, ($3200);						// read byte at $3200 in current ROM
 	ret;								// return with byte in A register
 
-;;; 14_vector.asm
+;;; 16_unmap.asm
 
 ;	// vector table for 'dot' commands
 	org $1FCA
@@ -5877,7 +5882,7 @@ jump_unmap_hl:
 	rst $38;							// mask interrupt (filler)
 	rst $38;							// mask interrupt (filler)
 
-;;; 15_basic.asm
+;;; 17_basic.asm
 
 ;	// UNODOS.SYS starts here
 	org $2000
@@ -6497,6 +6502,8 @@ load_validation_result:
 	ret c;								// return if validation passed
 	inc de;								// advance to next data
 	jr load_validation_result;			// continue validation loop
+;;; 18_commands.asm
+
 
 ;	org $23a5
 tk_overloads:
@@ -6978,6 +6985,8 @@ final_virtual_disk_string:
 	defb "Virtual Disk", 0;				// null-terminated string constant
 
 lower_end:
+;;; 19_fat_high.asm
+
 
 ;	// this part starts at $3000 in MMC RAM 1
 	org $3000
@@ -8093,6 +8102,8 @@ system_processing_call:
 	call descriptor_cleanup_validation;	// call processing routine
 	or a;								// test accumulator
 	ret;								// return to caller
+;;; 20_low_utils.asm
+
 
 clear_l_register:
 	ld l, 0;							// clear L register
