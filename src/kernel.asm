@@ -62,7 +62,7 @@ restart_18:
 	org $001f
 next_char_rst20:
 restart_20 equ next_char_rst20 + 1
-	jr keyboard_ret_instruction;							// jump to next character routine
+	jr keyboard_ret_instruction;		// jump to next character routine
 	ld e, l;							// save L register to E
 	ld e, h;							// save H register to E (overwrites previous)
 	ld (x_ptr), hl;						// save HL to ? marker pointer in BASIC
@@ -665,7 +665,7 @@ execute_page3_code:
 	nop;								// padding/alignment
 	ld a, 3;							// select divMMC page 3
 	out (mmcram), a;					// switch to divMMC page 3
-	call system_entry;							// call loaded code at $2000
+	call system_entry;					// call loaded code at $2000
 	xor a;								// clear accumulator
 	out (mmcram), a;					// switch back to divMMC page 0
 	ret;								// return to caller
@@ -1810,7 +1810,7 @@ syscall_table:
 	defw init_file_handle;				// f_attrib
 	defw init_file_handle;				// f_rename
 	defw init_file_handle;				// f_getfree
-	defw validate_drive_handle;							// 
+	defw validate_drive_handle;			// 
 	defw init_file_handle;				// 
 
 ;;; 07_dispatcher.asm
@@ -1852,7 +1852,7 @@ syscall_reg_save:
 system_call_dispatch:
 	ld a, iyl;							// get system call number
 	push hl;							// save HL register
-	ld hl, syscall_table;						// point to system call table (04_files.asm)
+	ld hl, syscall_table;				// point to system call table (04_files.asm)
 	add a, a;							// multiply by 2 (each entry is 2 bytes)
 	add a, l;							// add to table base address
 	ld l, a;							// store in L
@@ -2561,7 +2561,7 @@ memory_init_routine:
 	ld hl, ($2e46);						// get memory pointer
 	ld a, 2;							// select page 2
 	out (mmcram), a;					// switch to divMMC page 2
-	call system_entry;							// call system initialization
+	call system_entry;					// call system initialization
 	ld ($3de8), hl;						// save result pointer
 	jp c, $20;							// jump if error occurred
 	ld a, 0;							// select divMMC page 0
@@ -2575,7 +2575,7 @@ memory_cleanup_with_hl:
 	jr c, cleanup_restore_page;			// jump to cleanup if error
 	ld a, 2;							// select divMMC page 2
 	out (mmcram), a;					// divMMC RAM page 2
-	call system_entry;							// call system routine
+	call system_entry;					// call system routine
 
 ; // cleanup and restore divMMC memory page
 cleanup_restore_page:
@@ -2613,7 +2613,7 @@ read_file_to_page2:
 ;;; 10_utils.asm
 
 ; // open screen channel for output
-open_screen_channel:;							// called from dirs.io
+open_screen_channel:;					// called from dirs.io
 	ld a, 2;							// screen
 	rst $18;							// call BASIC ROM routine
 	defw chan_open;						// open channel function
@@ -3357,7 +3357,7 @@ handle_sector_buffer:
 clear_memory_buffer:
 	push hl;							// save HL register
 	ld hl, $2a00;						// load buffer address
-	call $313c;							// call memory clear function
+	call L313C;							// call memory clear function
 	pop hl;								// restore HL register
 	ret;								// return from function
 
@@ -3386,7 +3386,7 @@ process_sector_decrement:
 	dec (ix + 19);						// decrement sector count
 	jr z, complete_sector_processing;	// jump if all sectors processed
 	call get_file_next_cluster;			// call sector loading function
-	call $081c;							// call disk function
+	call inc_32bit;						// call disk function
 	jp set_file_next_cluster;			// jump back to processing loop
 
 ; Function: Complete sector processing
@@ -3585,12 +3585,12 @@ write_with_page_management:
 process_fat_cluster_operations:
 	call get_directory_cluster;			// call FAT processing function
 	call map_sector_from_cluster;		// call sector mapping function
-	call $305e;							// call system function
+	call L305E;							// call system function
 	ret c;								// return if operation failed
 	ld h, d;							// load D to H
 	ld l, e;							// load E to L
 	ld a, $ff;							// load end-of-chain marker
-	call $30e2;							// call cluster marking function
+	call L30E2;							// call cluster marking function
 	push de;							// save DE register
 	ld de, ($3c11);						// load system parameter address
 	ld bc, ($3c13);						// load system parameter value
@@ -3819,7 +3819,7 @@ init_buffer_system_call:
 	exx;								// switch to alternate registers
 	call process_cluster_pointer;		// call system function
 	exx;								// switch back to main registers
-	call $336d;							// call ROM routine
+	call L336D;							// call ROM routine
 	pop hl;								// restore buffer address to HL
 	or a;								// test result flags
 	ret;								// return with status
@@ -3847,26 +3847,26 @@ validate_file_operation:
 set_error_prepare_buffer:
 	ld a, $11;							// load error code 17
 	ld (ix + 6), a;						// store error code in file descriptor
-	ld hl, $2600;						// load buffer address
+	ld hl, L2600;						// load buffer address
 	push hl;							// save buffer address
 	call process_file_sector;			// call buffer read function
 	pop hl;								// restore HL register
 	ret c;								// return if error
 
 ; // directory entry processing loop
-L14A0:
+dir_entry_loop:
 	dec (ix + 6);						// decrement entry counter
-	jr nz, L14AA;						// jump if more entries to process
+	jr nz, dir_process_entry;			// jump if more entries to process
 	call process_sector_decrement;		// call sector advance function
 	jr set_error_prepare_buffer;		// jump to reload buffer
 
 ; // process current directory entry
-L14AA:
+dir_process_entry:
 	ld a, (hl);							// load first character of entry
 	and a;								// check if entry is empty (end of directory)
 	jr z, L1505;						// jump if end of directory
 	cp 229;								// check for deleted entry marker ($e5)
-	jr z, L14C3;						// jump if deleted entry
+	jr z, dir_deleted_entry;			// jump if deleted entry
 	ld c, l;							// save current entry pointer in C
 	ld a, l;							// load entry pointer
 	add a, 11;							// add 11 to point to attributes byte
@@ -3874,21 +3874,21 @@ L14AA:
 	ld a, (hl);							// load file attributes
 	ld l, c;							// restore entry pointer
 	cp 15;								// check for long filename entry ($0f)
-	jr nz, L14EA;						// jump if not long filename entry
+	jr nz, dir_check_attributes;		// jump if not long filename entry
 
 ; // skip long filename entries
-L14BD:
+dir_skip_entry:
 	ld bc, $20;							// load directory entry size (32 bytes)
 	add hl, bc;							// advance to next directory entry
-	jr L14A0;							// jump back to process next entry
+	jr dir_entry_loop;					// jump back to process next entry
 
 ; // handle deleted directory entry
-L14C3:
-	call L14C8;							// call deleted entry handler
-	jr L14BD;							// jump to skip entry
+dir_deleted_entry:
+	call handle_deleted_entry;			// call deleted entry handler
+	jr dir_skip_entry;					// jump to skip entry
 
 ; // process deleted entry for reuse tracking
-L14C8:
+handle_deleted_entry:
 	bit 1, (iy + 52);					// check if already tracking deleted entry
 	ret nz;								// return if already tracking
 	set 1, (iy + 52);					// set deleted entry tracking flag
@@ -3903,19 +3903,19 @@ L14C8:
 	ret;								// return from function
 
 ; // check file attributes and compare filenames
-L14EA:
+dir_check_attributes:
 	ld e, a;							// store file attributes in E
 	ld a, (iy + 51);					// load file attribute filter
 	and a;								// check if filter is set
 	jr z, L14F4;						// jump if no filter
 	and e;								// apply filter to file attributes
-	jr z, L14BD;						// skip entry if doesn't match filter
+	jr z, dir_skip_entry;				// skip entry if doesn't match filter
 
 ; // compare entry with search filename
 L14F4:
 	ld de, ($3c04);						// load search filename pointer
 	call compare_directory_entries;		// call filename comparison function
-	jr nz, L14BD;						// skip if no match
+	jr nz, dir_skip_entry;				// skip if no match
 	ld (ix + 28), l;					// store matched entry low address
 	ld (ix + 29), h;					// store matched entry high address
 	or a;								// clear carry flag (success)
@@ -3923,7 +3923,7 @@ L14F4:
 
 ; // handle end of directory (file not found)
 L1505:
-	call L14C8;							// call deleted entry handler
+	call handle_deleted_entry;							// call deleted entry handler
 	ld a, (ix + 30);					// load saved deleted entry number
 	ld (ix + 6), a;						// restore entry counter
 	ld a, (ix + 31);					// load saved deleted entry sector
@@ -4368,11 +4368,11 @@ L172A:
 	or a;								// check flags
 	bit 6, a;							// check directory creation bit
 	jr z, L1767;						// jump if not directory
-	call $34ca;							// call directory initialization function
-	call $3192;							// call directory setup function
+	call L34CA;							// call directory initialization function
+	call L3192;							// call directory setup function
 	ret c;								// return if setup failed
 	ld hl, $2d00;						// load directory buffer address
-	call $313c;							// call directory write function
+	call L313C;							// call directory write function
 	ret c;								// return if write failed
 	set 3, (ix + 1);					// set directory flag in descriptor
 	ld a, $80;							// load directory buffer offset
@@ -4406,7 +4406,7 @@ L177A:
 	set 2, (ix + 1);					// set buffer operation flag
 	call process_sector_decrement;		// call sector processing function
 	res 2, (ix + 1);					// clear buffer operation flag
-	ld hl, $2600;						// load sector buffer address
+	ld hl, L2600;						// load sector buffer address
 	ld bc, $01ff;						// load full sector size (511 bytes)
 
 ; // clear memory buffer with zeros
@@ -4486,8 +4486,8 @@ reset_file_position:
 
 ; // directory sector write function
 L17E7:
-	ld hl, $2600;						// load sector buffer address
-	call $313c;							// call sector write routine
+	ld hl, L2600;						// load sector buffer address
+	call L313C;							// call sector write routine
 	push af;							// save write result flags
 	xor a;								// clear accumulator
 	ld ($3c26), a;						// clear sector modification flag
@@ -4496,7 +4496,7 @@ L17E7:
 
 ; // directory position calculation function
 L17F4:
-	ld hl, $2600;						// load sector buffer address
+	ld hl, L2600;						// load sector buffer address
 	push hl;							// save buffer address
 	call process_file_sector;			// call directory sector read function
 	pop hl;								// restore buffer address
@@ -4532,7 +4532,7 @@ L1815:
 	pop de;								// restore DE register pair
 	pop bc;								// restore BC register pair
 	ret c;								// return if size write failed
-	call $3108;							// call system function
+	call L3108;							// call system function
 	call nc, flush_dirty_buffer;		// call directory update if no error
 	ret c;								// return if update failed
 	call reset_file_position;			// call file position reset
@@ -5675,7 +5675,7 @@ L1EA3:
 	ld d, (hl);							// load next byte into D
 	inc hl;								// advance pointer
 	ld e, (hl);							// load next byte into E
-	call $081c;							// call utility function
+	call inc_32bit;						// call utility function
 	call L1E97;							// call register shift routine
 	jr L1E9C;							// jump to shift left routine
 
@@ -6256,6 +6256,7 @@ L223B:
 	ld hl, $2d4e;						// load message table address
 	call L2264;							// call message printer
 	jp L1FFA;							// jump to completion handler
+
 ; Function: BASIC calculator operations
 L2245:
 	rst $28;							// enter calculator mode
@@ -6962,6 +6963,8 @@ L25F9:
 	rr c;								// rotate right C register
 	rr d;								// rotate right D register
 	rr e;								// rotate right E register
+
+L2600 equ $ - 1
 	rl l;								// rotate left L (collect overflow)
 	dec a;								// decrement shift counter
 	jr nz, L25F9;						// repeat until counter zero
@@ -7510,7 +7513,7 @@ L3348:
 	call L1712;							// call file creation function
 	ld (ix + 0), 0;						// clear file descriptor error status
 	ret c;								// return if creation failed
-	ld hl, $2600;						// load sector buffer address
+	ld hl, L2600;						// load sector buffer address
 	call L17FD;							// call directory sector calculation
 	ret c;								// return if calculation failed
 	ld a, $0b;							// load offset to attributes field
@@ -7730,7 +7733,7 @@ L347B:
 	ld bc, $0df7;						// load date validation code
 	jr z, L3497;						// jump if date validation passed
 	call check_file_position;			// call date conversion function
-	ld hl, $2600;						// load date output buffer
+	ld hl, L2600;						// load date output buffer
 	push hl;							// save buffer pointer
 	call read_disk_sector;				// call date formatting function
 	pop hl;								// restore buffer pointer
@@ -8167,7 +8170,7 @@ L36E7:
 
 L36F0:
 	ld a, $0e;							// load system call code
-	call L37C4;							// call system routine
+	call save_ix_register;							// call system routine
 	rst $30;							// restart 30 (calculator)
 	ex af, af';							// exchange AF registers
 	jr nc, L36FC;						// jump if no carry
@@ -8175,7 +8178,7 @@ L36F0:
 
 L36FC:
 	ld a, $12;							// load system call code 12
-	call L37C4;							// call system routine
+	call save_ix_register;							// call system routine
 	rst $30;							// restart 30 (calculator)
 	ex af, af';							// exchange AF registers
 	jp z, L3792;						// jump if zero to handler
@@ -8194,7 +8197,7 @@ L3714:
 	rst $30;							// restart 30 (calculator)
 	dec c;								// decrement counter
 	jr nz, L371F;						// jump if not zero
-	call L37BC;							// call completion routine
+	call print_inverse_control;			// call completion routine
 	jr L372F;							// jump to continuation
 
 L371F:
@@ -8202,7 +8205,7 @@ L371F:
 	push bc;							// save BC registers
 	xor a;								// clear accumulator
 	call L3796;							// call display routine
-	call L37BC;							// call completion routine
+	call print_inverse_control;			// call completion routine
 	ld a, 1;							// load value 1
 	pop bc;								// restore BC registers
 	pop de;								// restore DE registers
@@ -8222,7 +8225,7 @@ L372F:
 
 L3743:
 	ld a, $1f;							// load control code 31 (print position)
-	call L37C4;							// call system routine
+	call save_ix_register;							// call system routine
 	rst $30;							// restart 30 (calculator)
 	ex af, af';							// exchange AF registers
 	jr z, L375E;						// jump if zero
@@ -8281,7 +8284,7 @@ L3792:
 L3796:
 	or a;								// test accumulator
 	ld hl, $0200;						// load value 512
-	jr nz, L37A7;						// jump if not zero
+	jr nz, decrement_hl_reg;						// jump if not zero
 	ld a, (iy + _coord_y);				// get Y coordinate
 	push af;							// save Y coordinate
 
@@ -8294,7 +8297,7 @@ L37A0:
 L37A6:
 	pop af;								// restore accumulator
 
-L37A7:
+decrement_hl_reg:
 	dec hl;								// decrement HL
 	call add_32bit;						// call coordinate routine
 	ld e, d;							// move D to E
@@ -8302,22 +8305,22 @@ L37A7:
 	ld c, b;							// move B to C
 	ld b, 0;							// clear B register
 
-L37B0:
+shift_c_right_logical:
 	srl c;								// shift C right logical
 	rr d;								// rotate D right through carry
 	rr e;								// rotate E right through carry
 	rrca;								// rotate accumulator right with carry
-	jr nc, L37B0;						// loop while no carry
+	jr nc, shift_c_right_logical;		// loop while no carry
 	jp dec_32bit;						// jump to processing routine
 
-L37BC:
+print_inverse_control:
 	ld a, $1c;							// load control code 28 (print inverse)
-	call L37C4;							// call offset calculation
+	call save_ix_register;				// call offset calculation
 	rst $30;							// restart 30 (calculator)
 	nop;								// no operation
 	ret;								// return to caller
 
-L37C4:
+save_ix_register:
 	push ix;							// save IX register
 	pop hl;								// get IX value into HL
 	add a, l;							// add A to L
