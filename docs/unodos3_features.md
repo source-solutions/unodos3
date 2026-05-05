@@ -1,4 +1,4 @@
-# UnoDOS 3: Features & Capabilities
+# UnoDOS 3: Features and Capabilities
 
 UnoDOS 3 is a modern, modular operating system for the ZX Spectrum and compatible systems, designed to leverage the divMMC SD card interface. It provides advanced file, device, and memory management, along with a robust API for developers and users.
 
@@ -62,13 +62,6 @@ UnoDOS 3 is a modern, modular operating system for the ZX Spectrum and compatibl
 | Documentation       | Memory map, variables, kernel structure, usage examples          |
 | Compatibility       | ZX Spectrum, BASIC ROM, divMMC                                   |
 | Performance         | Optimized I/O, 32-bit math, buffer management                    |
-
----
-
-## Who Should Use UnoDOS 3?
-- ZX Spectrum developers seeking modern SD card file system support
-- Users wanting reliable, fast file and device management
-- Hobbyists and retrocomputing enthusiasts extending or customizing their OS
 
 ---
 
