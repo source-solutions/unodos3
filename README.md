@@ -1,23 +1,29 @@
-# UnoDOS 3.12 Wolf
+# UnoDOS 3.141 Ram
 
-The alternative operating system for divMMC. Finely tuned.
+This project maintains the sources of the UnoDOS 3 kernel.
 
-## Build prerequisites
+It is used as the disk operating system in the firmware of the [Chloe 280SE](https://www.patreon.com/c/chloe280se)
 
-The preferred IDE is _Visual Studio Code_ (https://code.visualstudio.com/) with Imanolea's _Z80 Assembly_ extension (install from the app).
+## Kernel
 
-The compiler is the _RASM_ assembler.
+The kernel provides a set of system calls, accessed by the `RST 8` instruction, followed by the system code.
 
-## Components
+## Binary snapshots
 
-The OS comprises:
+UnoDOS 3 is distributed in two parts (`unodos.rom` and `unodos.sys`). The ROM file should be flashed to the divMMC. The system file can be loaded to divMMC RAM from the SD card, but on the Chloe 280SE it is loaded from the boot ROM.
 
-* __KERNEL__: The interface between the divMMC hardware and the host machine.
-* __COMMANDS__: Small programs that provide shell functions when using UnoDOS 3 without SE Basic IV. 
-* __KEXTS__: Third-party kernel extensions that provide additional functionality.
+## Build instructions
+
+The preferred IDE is [Visual Studio Code](https://code.visualstudio.com/).
+
+The preferred assembler is [RASM](https://github.com/EdouardBERGE/rasm).
+
+## Version numbering
+
+UnoDOS 3 follows the TeX versioning convention.
 
 ## License
 
-Copyright &copy; 2017-2022 Source Solutions, Inc. All rights reserved.
+Copyright &copy; 2017-2026 Source Solutions, Inc. All rights reserved.
 
 Licensed under the [GNU General Public License](LICENSE).

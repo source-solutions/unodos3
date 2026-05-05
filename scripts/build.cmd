@@ -1,9 +1,6 @@
-copy zeus\zcl.exe src\zcl.exe
 cd src
-zcl kernel.asm
-erase zcl.exe
-cd ..
-cd bin
+rasm -pasmo kernel.asm -ob ..\bin\kernel.bin -sz -os ..\bin\symbols.txt
+cd ..\bin
 copy /b unodos0.sys+unodos1.sys unodos.sys
 erase unodos0.sys
 erase unodos1.sys
