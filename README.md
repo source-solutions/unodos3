@@ -14,9 +14,9 @@ UnoDOS 3 is distributed in two parts (`unodos.rom` and `unodos.sys`). The ROM fi
 
 ## Build instructions
 
-The preferred IDE is _Visual Studio Code_ (https://code.visualstudio.com/).
+The preferred IDE is [Visual Studio Code](https://code.visualstudio.com/).
 
-The preferred assembler is _RASM_.
+The preferred assembler is [RASM](https://github.com/EdouardBERGE/rasm).
 
 ## Version numbering
 
