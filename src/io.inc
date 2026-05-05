@@ -19,7 +19,7 @@
 
 
 ;	// I/O
-ula equ $fe;
+ula			equ	$fe;
 
 
 ;	// BASIC ROM ROUTINES
